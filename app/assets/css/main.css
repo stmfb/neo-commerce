@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* Google Fonts must be imported before local @font-face declarations.
+   Geist (UI/body) + DM Mono (numerics/code) + Inter (fallback). */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap");
+
+/* Clash Grotesk (display) is bundled locally so it renders offline. */
+@font-face {
+  font-family: "Clash Grotesk";
+  src: url("../fonts/clash-grotesk-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Grotesk";
+  src: url("../fonts/clash-grotesk-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Grotesk";
+  src: url("../fonts/clash-grotesk-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   NeoCash theme — maps the brand's design tokens onto Tailwind's
+   theme namespaces. Source: Shared Neocash Design System
+   (claude.ai/design/p/28bde37c-952d-43b8-baf3-60ee0d8da6db).
+   ============================================================ */
+@theme {
+  /* ── Fonts ──────────────────────────────────────────────
+     font-sans is the workhorse UI/body pair; font-display is
+     Clash Grotesk for headlines/pill labels; font-mono for
+     numerics/code. tracking-tight and duration-150 already
+     match the brand's -0.025em / 150ms values via Tailwind's
+     own defaults, so they're left untouched. */
+  --font-display: "Clash Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ── Brand colors ───────────────────────────────────── */
+  --color-nc-primary: #917cff;
+  --color-nc-primary-strong: #9747ff;
+  --color-nc-primary-soft: #b5a8fc;
+  --color-nc-primary-wash: #f0edff;
+
+  --color-nc-vault: #1a47b8;
+  --color-nc-vault-soft: #297eff;
+  --color-nc-sky: #8fc6ff;
+  --color-nc-cyan: #3ecbf8;
+  --color-nc-cobalt: #155dfc;
+
+  --color-nc-yellow: #ffda2c;
+  --color-nc-yellow-deep: #d4af2c;
+  --color-nc-orange: #ff6c2d;
+
+  /* ── Foreground (text) ──────────────────────────────── */
+  --color-nc-ink: #2d3261;
+  --color-nc-ink-2: #313766;
+  --color-nc-ink-deep: #1a1d3d;
+  --color-nc-muted: #75789a;
+  --color-nc-black: #151515;
+
+  /* ── Background / surface ───────────────────────────── */
+  --color-nc-bg: #ffffff;
+  --color-nc-surface: #f7f8fa;
+  --color-nc-border: #e9eaf0;
+
+  /* ── Semantic ────────────────────────────────────────── */
+  --color-nc-success: #249f58;
+  --color-nc-success-wash: #e6f5ec;
+  --color-nc-warning: #ffda2c;
+  --color-nc-warning-wash: #fff6cc;
+  --color-nc-warning-ink: #8a6d00;
+  --color-nc-danger: #f93939;
+  --color-nc-danger-2: #ef4444;
+  --color-nc-danger-deep: #af010d;
+  --color-nc-danger-wash: #fde5e5;
+
+  /* Spacing scale (4/8/12/16/24/28/32/40/64/80) isn't redefined here —
+     it's already exactly Tailwind's default 4px-based scale
+     (spacing-1/2/3/4/6/7/8/10/16/20), so p-6, gap-7, etc. line up. */
+
+  /* ── Radii ───────────────────────────────────────────── */
+  --radius-xs: 4px; /* chips */
+  --radius-sm: 6px; /* inputs, badges */
+  --radius-md: 8px; /* buttons */
+  --radius-lg: 12px; /* popovers, menus */
+  --radius-xl: 20px; /* table containers */
+  --radius-2xl: 24px; /* page panels */
+  --radius-3xl: 28px; /* content cards */
+
+  /* ── Shadows ─────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px -1px rgba(26, 26, 26, 0.05);
+  --shadow-card: 0 1px 2px -1px rgba(26, 26, 26, 0.05), 0 10px 20px 0 rgba(26, 26, 26, 0.05);
+  --shadow-pop: 0 4px 6px -1px rgba(26, 26, 26, 0.05), 0 10px 20px 0 rgba(26, 26, 26, 0.05);
+
+  /* ── Motion ──────────────────────────────────────────── */
+  --ease-nc: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Bare-element resets so the brand tokens apply without utility classes. */
+html {
+  background: var(--color-nc-bg);
+  color: var(--color-nc-ink);
+}
+body {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-nc-ink);
+  margin: 0;
+}
