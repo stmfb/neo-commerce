@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3" :class="columns === 6 ? 'lg:grid-cols-6' : 'lg:grid-cols-4'">
     <ProductCard v-for="product in sortedProducts" :key="product.id" :product="product" />
   </div>
 </template>
@@ -9,8 +9,8 @@ import { computed } from "vue";
 import type { Product } from "~/data/products";
 
 const props = withDefaults(
-  defineProps<{ products: Product[]; demoteOutOfStock?: boolean }>(),
-  { demoteOutOfStock: false },
+  defineProps<{ products: Product[]; demoteOutOfStock?: boolean; columns?: 4 | 6 }>(),
+  { demoteOutOfStock: false, columns: 4 },
 );
 
 const sortedProducts = computed(() => {

@@ -33,6 +33,12 @@ export interface RepaymentEntry {
   status: RepaymentStatus;
 }
 
+export interface PlanAdjustment {
+  merchantName: string;
+  removedAmount: number;
+  previousMonthlyAmount: number;
+}
+
 export interface Order {
   id: string;
   placedDate: string;
@@ -45,6 +51,7 @@ export interface Order {
   deliveryAddress: string;
   subOrders: SubOrder[];
   repaymentSchedule: RepaymentEntry[];
+  planAdjustment?: PlanAdjustment;
 }
 
 export const seedOrders: Order[] = [
@@ -57,6 +64,11 @@ export const seedOrders: Order[] = [
     monthlyAmount: 39200,
     totalRepayable: 326600,
     deliveryAddress: "Chidi Okafor — 14 Adeola Odeku Street, Victoria Island, Lagos",
+    planAdjustment: {
+      merchantName: "Yaba Home Store",
+      removedAmount: 28400,
+      previousMonthlyAmount: 42900,
+    },
     repaymentSchedule: [
       { label: "Down payment", date: "Paid 4 Aug", amount: 91400, status: "paid" },
       { label: "Instalment 1", date: "Paid 6 Sep", amount: 39200, status: "paid" },

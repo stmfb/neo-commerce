@@ -13,7 +13,7 @@
       <p class="mt-3 text-sm text-white/70 sm:text-base">
         {{
           variant === "home"
-            ? "Fill one cart across as many stores as you like. You still get one plan, one authorisation, one schedule."
+            ? "Fill one cart across as many stores as you like. You still \n get one plan, one authorisation, one schedule."
             : "Browse freely. Sign in to see what you can afford each month."
         }}
       </p>

@@ -2,7 +2,7 @@
   <aside class="space-y-5">
     <div class="rounded-xl border border-line bg-white p-4">
       <p class="text-sm font-bold text-primary-dark-900">What you can afford</p>
-      <p class="mt-2 font-display text-2xl font-bold text-primary-dark-900">
+      <p class="mt-2 font-sans text-2xl font-bold text-primary-dark-900">
         {{ formatNaira(maxMonthly) }}<span class="text-sm font-medium text-primary-dark-400">/mo</span>
       </p>
       <RangeSlider v-model="maxMonthly" :min="5000" :max="limit" :step="500" class="mt-3" />

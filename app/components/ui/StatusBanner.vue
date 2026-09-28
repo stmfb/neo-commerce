@@ -29,8 +29,8 @@ const props = withDefaults(
 const toneClasses = computed(() => {
   return {
     dark: "border-transparent bg-primary-dark text-white",
-    info: "border-primary-100 bg-primary-50",
-    warning: "border-amber-200 bg-amber-50",
+    info: "border-transparent bg-[#F0EDFF]",
+    warning: "border-[#E8DA94] bg-[#FFF6CC]",
     error: "border-rose-200 bg-rose-50",
     success: "border-emerald-200 bg-emerald-50",
     neutral: "border-line bg-white",
@@ -40,8 +40,8 @@ const toneClasses = computed(() => {
 const titleClasses = computed(() => {
   return {
     dark: "text-white",
-    info: "text-primary-dark-900",
-    warning: "text-amber-900",
+    info: "text-[#2D3261]",
+    warning: "text-[#8A6D00]",
     error: "text-rose-700",
     success: "text-emerald-800",
     neutral: "text-primary-dark-900",
@@ -51,8 +51,8 @@ const titleClasses = computed(() => {
 const bodyClasses = computed(() => {
   return {
     dark: "text-white/70",
-    info: "text-primary-dark-500",
-    warning: "text-amber-800",
+    info: "text-[#5B4FA8]",
+    warning: "text-[#7A6210]",
     error: "text-rose-600",
     success: "text-emerald-700",
     neutral: "text-primary-dark-400",
@@ -62,8 +62,8 @@ const bodyClasses = computed(() => {
 const iconWrapClasses = computed(() => {
   return {
     dark: "bg-white/15 text-white",
-    info: "bg-primary-100 text-primary-600",
-    warning: "bg-amber-100 text-amber-700",
+    info: "bg-transparent text-primary-600",
+    warning: "bg-transparent text-[#8A6D00]",
     error: "bg-rose-100 text-rose-600",
     success: "bg-emerald-100 text-emerald-700",
     neutral: "bg-slate-100 text-primary-dark-500",

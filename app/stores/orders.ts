@@ -8,7 +8,10 @@ let sequence = 88300;
 export const useOrdersStore = defineStore(
   "orders",
   () => {
-    const orders = ref<Order[]>(seedOrders);
+    // Only orders created at runtime (via checkout) are persisted. The seed catalog always
+    // comes straight from code, so updates to it aren't masked by a stale localStorage copy.
+    const createdOrders = ref<Order[]>([]);
+    const orders = computed<Order[]>(() => [...createdOrders.value, ...seedOrders]);
 
     function getOrder(id: string): Order | undefined {
       return orders.value.find((order) => order.id === id);
@@ -51,11 +54,11 @@ export const useOrdersStore = defineStore(
         repaymentSchedule,
       };
 
-      orders.value = [order, ...orders.value];
+      createdOrders.value = [order, ...createdOrders.value];
       return order;
     }
 
-    return { orders, getOrder, createOrderFromCart };
+    return { orders, createdOrders, getOrder, createOrderFromCart };
   },
-  { persist: true },
+  { persist: { pick: ["createdOrders"] } },
 );

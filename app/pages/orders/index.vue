@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
     <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: 'My orders' }]" />
-    <h1 class="mb-5 text-2xl font-bold text-primary-dark-900">My orders</h1>
+    <h1 class="mb-5 text-3xl font-bold font-display text-primary-dark">My orders</h1>
 
     <EmptyState
       v-if="orders.length === 0"

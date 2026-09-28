@@ -5,7 +5,7 @@ export default <Partial<Config>>{
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Clash Grotesk"', "Inter", "system-ui", "sans-serif"],
+        sans: ['"Geist"', "Inter", "system-ui", "sans-serif"],
         display: ['"Clash Grotesk"', "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {

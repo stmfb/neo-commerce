@@ -1,5 +1,5 @@
 <template>
-  <span class="inline-flex items-baseline font-display font-bold text-primary-dark-900" :class="sizeClass">
+  <span class="inline-flex items-baseline font-bold font-display text-primary-dark" :class="sizeClass">
     neocash<span class="ml-0.5 font-semibold text-primary-500" :class="tagSizeClass">shop</span>
   </span>
 </template>

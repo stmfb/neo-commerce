@@ -1,8 +1,8 @@
 <template>
   <div class="mx-auto max-w-[1320px] space-y-8 px-4 py-6 sm:px-6">
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-      <HeroBanner variant="home" />
-      <div class="flex flex-col gap-4">
+    <div class="grid grid-cols-1 gap-4" :class="signedIn ? 'lg:grid-cols-[1fr_320px]' : ''">
+      <HeroBanner :variant="signedIn ? 'home' : 'directory'" />
+      <div v-if="signedIn" class="flex flex-col gap-4">
         <PromoCard
           title="Under ₦50,000"
           description="Everything you can start paying from ₦4,200/mo"
@@ -18,7 +18,12 @@
       </div>
     </div>
 
-    <HomeAffordabilityWidget :signed-in="signedIn" :approved-limit="approvedLimit" @apply="applyBudget" />
+    <HomeAffordabilityWidget
+      :signed-in="signedIn"
+      :approved-limit="approvedLimit"
+      @apply="applyBudget"
+      @sign-in="toggleSignedIn"
+    />
 
     <section>
       <SectionHeader title="Shop by category" />
@@ -30,7 +35,7 @@
         :title="signedIn ? `Fits your ${formatNaira(appliedBudget ?? approvedLimit)}/mo` : 'Popular this week'"
         :subtitle="appliedBudget ? `Showing items you could repay at ${formatNaira(appliedBudget)}/mo or less.` : undefined"
       />
-      <ProductGrid :products="displayedProducts" />
+      <ProductGrid :products="displayedProducts" :columns="6" />
     </section>
 
     <section class="rounded-2xl border border-line bg-white p-5">
@@ -54,7 +59,7 @@ import { computed, ref } from "vue";
 import { products } from "~/data/products";
 import { merchants } from "~/data/merchants";
 
-const { signedIn, approvedLimit } = useAuth();
+const { signedIn, approvedLimit, toggleSignedIn } = useAuth();
 
 const appliedBudget = ref<number | null>(null);
 
@@ -63,7 +68,7 @@ function applyBudget(value: number) {
 }
 
 const featuredProducts = computed(() =>
-  ["p1", "p2", "p3", "p4", "p5"].map((id) => products.find((product) => product.id === id)!),
+  ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => products.find((product) => product.id === id)!),
 );
 
 const displayedProducts = computed(() => {

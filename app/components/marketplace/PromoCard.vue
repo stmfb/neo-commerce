@@ -1,6 +1,6 @@
 <template>
   <NuxtLink :to="to" class="flex flex-1 flex-col justify-center rounded-2xl p-5 transition-colors" :class="toneClass">
-    <p class="font-display text-lg font-bold text-white">{{ title }}</p>
+    <p class="font-sans text-lg font-bold text-white">{{ title }}</p>
     <p class="mt-1 text-sm text-white/80">{{ description }}</p>
   </NuxtLink>
 </template>
