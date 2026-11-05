@@ -39,17 +39,42 @@ export interface ApiOfficialStore {
   verified: boolean;
 }
 
-export interface ApiAffordability {
+/** The home payload only says whether a limit is known; details come from /me/affordability. */
+export interface ApiHomeAffordability {
   known: boolean;
-  [key: string]: unknown;
 }
 
 export interface MarketplaceHome {
   rails: ApiRail[];
   categories: ApiCategory[];
   officialStores: ApiOfficialStore[];
-  affordability: ApiAffordability;
+  affordability: ApiHomeAffordability;
 }
+
+/** Slider bounds for picking a monthly budget, in kobo. */
+interface ApiAffordabilitySlider {
+  sliderMinKobo: number;
+  sliderMaxKobo: number;
+  sliderStepKobo: number;
+  guidanceCopy: string;
+}
+
+/** GET /me/affordability when we don't know the shopper's limit (e.g. not signed in). */
+export interface ApiAffordabilityUnknown extends ApiAffordabilitySlider {
+  known: false;
+}
+
+/**
+ * GET /me/affordability when the shopper's limit is known.
+ * TODO: shape not yet observed — the backend only returns `known: false` today.
+ * `monthlyLimitKobo` is an assumed name; confirm with the API and adjust.
+ */
+export interface ApiAffordabilityKnown extends Partial<ApiAffordabilitySlider> {
+  known: true;
+  monthlyLimitKobo?: number;
+}
+
+export type ApiAffordability = ApiAffordabilityUnknown | ApiAffordabilityKnown;
 
 export interface ApiBreadcrumbItem {
   label: string;

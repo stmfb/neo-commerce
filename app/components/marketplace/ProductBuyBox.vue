@@ -87,7 +87,7 @@ const props = defineProps<{
   maxQuantity?: number;
 }>();
 
-const { signedIn, approvedLimit } = useAuth();
+const affordabilityStore = useAffordabilityStore();
 const { addItem } = useCart();
 
 const merchant = computed(() => props.merchant ?? getMerchant(props.product.merchantSlug));
@@ -112,13 +112,17 @@ const blockedOptionLabel = computed(() => blockedGroup.value?.option ?? "");
 const canAddToCart = computed(() => props.product.stock !== "out" && !variantBlocked.value);
 
 const affordability = computed(() => {
-  if (!signedIn.value) {
-    return { text: "Sign in to see if this fits your budget", class: "text-primary-dark-400", dot: "bg-primary-dark-300" };
+  // Compare against the shopper's chosen budget, else their known limit.
+  const budget = affordabilityStore.budget;
+  const cap = affordabilityStore.cap;
+  if (cap === null) {
+    return { text: "Set a monthly budget to see if this fits", class: "text-primary-dark-400", dot: "bg-primary-dark-300" };
   }
-  if (props.product.fromMonthly <= approvedLimit.value) {
-    return { text: `Fits your ${formatNaira(approvedLimit.value)}/mo limit`, class: "text-emerald-600", dot: "bg-emerald-500" };
+  const noun = budget !== null ? "budget" : "limit";
+  if (props.product.fromMonthly <= cap) {
+    return { text: `Fits your ${formatNaira(cap)}/mo ${noun}`, class: "text-emerald-600", dot: "bg-emerald-500" };
   }
-  return { text: `Above your ${formatNaira(approvedLimit.value)}/mo limit`, class: "text-amber-600", dot: "bg-amber-500" };
+  return { text: `Above your ${formatNaira(cap)}/mo ${noun}`, class: "text-amber-600", dot: "bg-amber-500" };
 });
 
 function handleAdd() {

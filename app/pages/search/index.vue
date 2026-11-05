@@ -30,11 +30,11 @@
       <SearchFilters
         id="search-filters"
         :class="filtersOpen ? 'block' : 'hidden lg:block'"
-        :selected="query"
+        :selected="effectiveQuery"
         :brands="searchStore.brands"
         :merchants="searchStore.merchants"
         :conditions="searchStore.conditions"
-        :limit="approvedLimit"
+        :guidance="affordabilityStore.guidance"
         @change="update"
       />
 
@@ -126,18 +126,25 @@ import type { ApiFacetOption, ListingSort, SearchQuery } from "~/models/marketpl
 
 const route = useRoute();
 const router = useRouter();
-const { approvedLimit } = useAuth();
+const affordabilityStore = useAffordabilityStore();
 
 const searchStore = useSearchStore();
 const { loading, loadingMore, error, total, empty, hasMore } = storeToRefs(searchStore);
 
 // The URL is the source of truth: shareable, bookmarkable, back-button friendly.
 const query = computed(() => searchQueryFromRoute(route.query));
-const queryKey = computed(() => searchQueryKey(query.value));
+
+// Monthly cap: an explicit `maxMonthly` in the URL (e.g. a shared link) wins; otherwise
+// the shopper's site-wide budget, else their known limit.
+const effectiveQuery = computed<SearchQuery>(() => ({
+  ...query.value,
+  maxMonthly: query.value.maxMonthly ?? affordabilityStore.capKobo ?? undefined,
+}));
+const queryKey = computed(() => searchQueryKey(effectiveQuery.value));
 
 await useAsyncData(
   () => `search-${queryKey.value}`,
-  () => searchStore.search(query.value),
+  () => searchStore.search(effectiveQuery.value),
   // lazy: client navigations switch page immediately and show the shimmer while loading.
   { watch: [queryKey], lazy: true },
 );
@@ -153,10 +160,17 @@ watch(() => query.value.q, () => (filtersOpen.value = false));
 
 /** Merges a filter change into the URL; the watcher above runs the search. */
 function update(patch: Partial<SearchQuery>) {
-  router.replace({ path: "/search", query: searchQueryToRoute({ ...query.value, ...patch }) });
+  const next = { ...query.value, ...patch };
+  // The monthly budget is site-wide: save it (header chip follows) instead of pinning it in the URL.
+  if ("maxMonthly" in patch) {
+    affordabilityStore.setBudget(patch.maxMonthly ?? null);
+    delete next.maxMonthly;
+  }
+  router.replace({ path: "/search", query: searchQueryToRoute(next) });
 }
 
 function clearFilters() {
+  affordabilityStore.clearBudget();
   router.replace({ path: "/search", query: searchQueryToRoute({ q: query.value.q, sort: query.value.sort }) });
 }
 
@@ -188,10 +202,12 @@ const chips = computed(() => {
     const label = min && max ? `${min} – ${max}` : min ? `From ${min}` : `Up to ${max}`;
     out.push({ key: "price", label, patch: { minPrice: undefined, maxPrice: undefined } });
   }
-  if (q.maxMonthly) {
+  // Show a chip only for a cap the shopper chose (URL or budget), not the default known limit.
+  const chosenMonthly = q.maxMonthly ?? affordabilityStore.budgetKobo;
+  if (chosenMonthly) {
     out.push({
       key: "monthly",
-      label: `Under ${formatNaira(koboToNaira(q.maxMonthly))}/mo`,
+      label: `Under ${formatNaira(koboToNaira(chosenMonthly))}/mo`,
       patch: { maxMonthly: undefined },
     });
   }

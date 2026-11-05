@@ -37,7 +37,8 @@
         v-model:selected-sellers="selectedSellers"
         v-model:official-only="officialOnly"
         v-model:in-stock-only="inStockOnly"
-        :limit="approvedLimit"
+        :cap="cap"
+        :guidance="affordabilityStore.guidance"
         :sub-categories="subCategoryOptions"
         :sellers="sellerOptions"
       />
@@ -46,8 +47,8 @@
         <div class="mb-4">
           <h1 class="text-2xl font-bold text-primary-dark-900">{{ categoryName }}</h1>
           <p v-if="!notFound" class="mt-1 text-sm text-primary-dark-400">
-            {{ totalItems }} items from {{ sellerOptions.length }} sellers · filtered to
-            {{ formatNaira(maxMonthly) }}/mo
+            {{ totalItems }} items from {{ sellerOptions.length }} sellers<template v-if="cap !== null">
+              · filtered to {{ formatNaira(cap) }}/mo</template>
           </p>
         </div>
 
@@ -118,7 +119,7 @@ import type { Product } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 
 const route = useRoute();
-const { approvedLimit } = useAuth();
+const affordabilityStore = useAffordabilityStore();
 const categoryStore = useCategoryStore();
 const { loading: pending, loadingMore, error, errorStatus, nextCursor } = storeToRefs(categoryStore);
 const notFound = computed(() => errorStatus.value === 404);
@@ -170,7 +171,14 @@ const breadcrumbItems = computed(() => {
 const sellerName = (product: Product) =>
   product.merchantName ?? getMerchant(product.merchantSlug)?.name ?? product.merchantSlug;
 
-const maxMonthly = ref(approvedLimit.value);
+// The budget slider here is the site-wide budget (same as the header chip), in naira.
+const maxMonthly = computed<number | null>({
+  get: () => affordabilityStore.budget,
+  set: (naira) => affordabilityStore.setBudget(naira === null ? null : nairaToKobo(naira)),
+});
+/** What results are capped at: picked budget, else known limit, else no cap. */
+const cap = computed(() => affordabilityStore.cap);
+const fitsCap = (monthly: number) => cap.value === null || monthly <= cap.value;
 const selectedSubCategories = ref<string[]>([]);
 const selectedSellers = ref<string[]>([]);
 const officialOnly = ref(false);
@@ -178,7 +186,6 @@ const inStockOnly = ref(false);
 
 watch(slug, () => {
   filtersOpen.value = false;
-  maxMonthly.value = approvedLimit.value;
   selectedSubCategories.value = [];
   selectedSellers.value = [];
   officialOnly.value = false;
@@ -217,14 +224,14 @@ function matchesEverythingExceptBudget(product: (typeof categoryProducts.value)[
 
 const filteredProducts = computed(() =>
   categoryProducts.value.filter(
-    (product) => matchesEverythingExceptBudget(product) && product.fromMonthly <= maxMonthly.value,
+    (product) => matchesEverythingExceptBudget(product) && fitsCap(product.fromMonthly),
   ),
 );
 
 const suggestedRaise = computed(() => {
   if (filteredProducts.value.length) return null;
   const candidates = categoryProducts.value
-    .filter((product) => matchesEverythingExceptBudget(product) && product.fromMonthly > maxMonthly.value)
+    .filter((product) => matchesEverythingExceptBudget(product) && !fitsCap(product.fromMonthly))
     .sort((a, b) => a.fromMonthly - b.fromMonthly);
   return candidates[0]?.fromMonthly ?? null;
 });
@@ -242,16 +249,16 @@ const emptyTitle = computed(() =>
 
 const emptyDescription = computed(() => {
   if (!suggestedRaise.value) return "Try clearing a filter to see more items in this category.";
-  return `Your ${formatNaira(maxMonthly.value)}/mo budget is the tightest one. Raising it to ${formatNaira(suggestedRaise.value)}/mo would show ${raisedCount.value} items in this category.`;
+  return `Your ${formatNaira(cap.value ?? 0)}/mo budget is the tightest one. Raising it to ${formatNaira(suggestedRaise.value)}/mo would show ${raisedCount.value} items in this category.`;
 });
 
 const activeChips = computed(() => {
   const chips: { key: string; label: string; remove: () => void }[] = [];
-  if (maxMonthly.value < approvedLimit.value) {
+  if (maxMonthly.value !== null) {
     chips.push({
       key: "budget",
       label: `Under ${formatNaira(maxMonthly.value)}/mo`,
-      remove: () => (maxMonthly.value = approvedLimit.value),
+      remove: () => (maxMonthly.value = null),
     });
   }
   for (const sub of selectedSubCategories.value) {
@@ -278,7 +285,7 @@ const activeChips = computed(() => {
 });
 
 function clearAll() {
-  maxMonthly.value = approvedLimit.value;
+  maxMonthly.value = null;
   selectedSubCategories.value = [];
   selectedSellers.value = [];
   officialOnly.value = false;

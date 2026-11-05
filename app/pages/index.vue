@@ -18,12 +18,7 @@
       </div>
     </div>
 
-    <HomeAffordabilityWidget
-      :signed-in="signedIn"
-      :approved-limit="approvedLimit"
-      @apply="applyBudget"
-      @sign-in="toggleSignedIn"
-    />
+    <HomeAffordabilityWidget />
 
     <StatusBanner v-if="homeError" tone="warning" title="We couldn't load the latest listings">
       Please refresh to try again.
@@ -74,23 +69,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { products } from "~/data/products";
 import type { Category } from "~/data/categories";
 
 
-const { signedIn, approvedLimit, toggleSignedIn } = useAuth();
+const { signedIn } = useAuth();
+const affordabilityStore = useAffordabilityStore();
 const marketplaceStore = useMarketplaceStore();
 const { loading: pending, error: homeError } = storeToRefs(marketplaceStore);
 
 // Runs on the server for SSR; Pinia state is hydrated to the client, so no refetch.
 await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome(), { lazy: true });
 
-const appliedBudget = ref<number | null>(null);
-
-function applyBudget(value: number) {
-  appliedBudget.value = value;
-}
+// Site-wide monthly budget (header chip / home widget), in naira.
+const appliedBudget = computed(() => affordabilityStore.budget);
 
 const rails = computed(() =>
   marketplaceStore.rails.map((rail) => ({

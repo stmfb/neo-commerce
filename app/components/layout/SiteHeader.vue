@@ -10,7 +10,7 @@
 
           <SearchForm class="hidden sm:flex" />
 
-          <AffordabilityChip class="hidden sm:flex" :signed-in="signedIn" :approved-limit="approvedLimit" />
+          <AffordabilityChip class="hidden sm:block" />
 
           <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:ml-0 sm:gap-2">
             <AccountMenu />
@@ -20,7 +20,7 @@
 
         <div class="mt-3 flex flex-col gap-3 sm:hidden">
           <SearchForm />
-          <AffordabilityChip :signed-in="signedIn" :approved-limit="approvedLimit" />
+          <AffordabilityChip />
         </div>
       </div>
     </div>
@@ -31,8 +31,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const { signedIn, approvedLimit } = useAuth();
 const route = useRoute();
+
+// Loaded once per visit; header chip, home, category, search and product pages all read it.
+const affordabilityStore = useAffordabilityStore();
+await useAsyncData("affordability", () => affordabilityStore.fetchAffordability(), { lazy: true });
 
 const activeCategorySlug = computed(() => {
   if (route.name === "category-slug" || route.path.startsWith("/category/")) {

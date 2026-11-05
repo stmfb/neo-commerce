@@ -1,5 +1,5 @@
 export function useAuth() {
   const store = useAuthStore();
-  const { signedIn, approvedLimit, customerName } = storeToRefs(store);
-  return { signedIn, approvedLimit, customerName, toggleSignedIn: store.toggleSignedIn };
+  const { signedIn, customerName } = storeToRefs(store);
+  return { signedIn, customerName, toggleSignedIn: store.toggleSignedIn };
 }

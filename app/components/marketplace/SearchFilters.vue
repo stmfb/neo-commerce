@@ -3,17 +3,11 @@
     <!-- Monthly budget -->
     <div class="rounded-xl border border-line bg-white p-4">
       <p class="text-sm font-bold text-primary-dark-900">What you can afford</p>
-      <p class="mt-2 font-sans text-2xl font-bold text-primary-dark-900">
-        <template v-if="monthlyDraft < limit">
-          {{ formatNaira(monthlyDraft) }}<span class="text-sm font-medium text-primary-dark-400">/mo</span>
-        </template>
-        <template v-else>Any budget</template>
+      <BudgetSlider v-model="monthlyDraft" class="mt-2" />
+      <p class="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-700">
+        <template v-if="monthlyDraft !== null">Showing items you could repay at {{ formatNaira(monthlyDraft) }}/mo or less.</template>
+        <template v-else>{{ guidance }}</template>
       </p>
-      <RangeSlider v-model="monthlyDraft" :min="MIN_MONTHLY" :max="limit" :step="500" class="mt-3" />
-      <div class="mt-1 flex justify-between text-[11px] text-primary-dark-300">
-        <span>{{ formatNaira(MIN_MONTHLY) }}</span>
-        <span>{{ formatNaira(limit) }} limit</span>
-      </div>
     </div>
 
     <!-- Price range -->
@@ -80,15 +74,12 @@ import type { ApiFacetOption, SearchQuery } from "~/models/marketplace_model";
 
 type FacetKey = "brand" | "merchant" | "condition";
 
-const MIN_MONTHLY = 5000;
-
 const props = defineProps<{
   selected: SearchQuery;
   brands: ApiFacetOption[];
   merchants: ApiFacetOption[];
   conditions: ApiFacetOption[];
-  /** User's approved monthly limit in naira; the slider's top end means "no budget filter". */
-  limit: number;
+  guidance: string;
 }>();
 
 const emit = defineEmits<{ change: [patch: Partial<SearchQuery>] }>();
@@ -125,19 +116,18 @@ function toggle(key: FacetKey, id: string) {
   emit("change", { [key]: next });
 }
 
-// Monthly budget: slider is in naira; the URL/API use kobo. Debounced so dragging
-// doesn't fire a search per pixel.
-const monthlyFromProps = () =>
-  props.selected.maxMonthly ? Math.min(koboToNaira(props.selected.maxMonthly), props.limit) : props.limit;
-const monthlyDraft = ref(monthlyFromProps());
-watch(() => [props.selected.maxMonthly, props.limit], () => (monthlyDraft.value = monthlyFromProps()));
+// Monthly budget: slider is in naira (null = any); the URL/API use kobo. Debounced so
+// dragging doesn't fire a search per pixel.
+const monthlyFromProps = () => (props.selected.maxMonthly ? koboToNaira(props.selected.maxMonthly) : null);
+const monthlyDraft = ref<number | null>(monthlyFromProps());
+watch(() => props.selected.maxMonthly, () => (monthlyDraft.value = monthlyFromProps()));
 
 let monthlyTimer: ReturnType<typeof setTimeout> | undefined;
 watch(monthlyDraft, (value) => {
   if (value === monthlyFromProps()) return;
   clearTimeout(monthlyTimer);
   monthlyTimer = setTimeout(() => {
-    emit("change", { maxMonthly: value >= props.limit ? undefined : nairaToKobo(value) });
+    emit("change", { maxMonthly: value === null ? undefined : nairaToKobo(value) });
   }, 400);
 });
 
