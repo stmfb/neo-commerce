@@ -127,7 +127,9 @@ const filtersOpen = ref(false);
 
 // Category list for the not-found suggestions. Shares the header nav's key, so it's one request.
 const marketplaceStore = useMarketplaceStore();
-await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome());
+// The header nav already loads this in the browser; only wait for it during SSR, where
+// the page can render before the nav has finished.
+if (import.meta.server) await marketplaceStore.fetchHome();
 
 const slug = computed(() => route.params.slug as string);
 const categoryName = computed(() => {
@@ -141,7 +143,8 @@ const categoryName = computed(() => {
 await useAsyncData(
   () => `category-listings-${slug.value}`,
   () => categoryStore.fetchListings(slug.value),
-  { watch: [slug] },
+  // lazy: client navigations switch page immediately and show the shimmer while loading.
+  { watch: [slug], lazy: true },
 );
 
 const loadMore = () => categoryStore.loadMore();

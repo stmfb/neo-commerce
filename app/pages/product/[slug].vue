@@ -1,5 +1,5 @@
 <template>
-  <div v-if="pending && !product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+  <div v-if="showShimmer" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
     <ShimmerProductDetail />
   </div>
 
@@ -142,7 +142,7 @@ const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 
 const listingStore = useListingStore();
-const { listing, loading: pending, errorStatus } = storeToRefs(listingStore);
+const { listing, loading: pending, error, errorStatus } = storeToRefs(listingStore);
 const notFound = computed(() => errorStatus.value === 404);
 
 // Local demo products (e.g. recently viewed) still resolve without an API call.
@@ -151,7 +151,8 @@ const localProduct = computed(() => getProduct(slug.value));
 await useAsyncData(
   () => `listing-${slug.value}`,
   () => (localProduct.value ? Promise.resolve(true) : listingStore.fetchListing(slug.value)),
-  { watch: [slug] },
+  // lazy: client navigations switch page immediately and show the shimmer while loading.
+  { watch: [slug], lazy: true },
 );
 
 const apiListing = computed(() => (listing.value?.listingId === slug.value ? listing.value : null));
@@ -159,6 +160,10 @@ const apiListing = computed(() => (listing.value?.listingId === slug.value ? lis
 const product = computed(
   () => localProduct.value ?? (apiListing.value ? listingDetailToProduct(apiListing.value) : undefined),
 );
+// Shimmer until this product's data is here or the request has failed — covers the tick
+// between a lazy navigation rendering and the fetch starting.
+const showShimmer = computed(() => !product.value && (pending.value || !error.value));
+
 const merchant = computed(() => {
   if (apiListing.value) return listingMerchantToMerchant(apiListing.value.merchant);
   return product.value ? getMerchant(product.value.merchantSlug) : undefined;

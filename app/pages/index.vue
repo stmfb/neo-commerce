@@ -84,7 +84,7 @@ const marketplaceStore = useMarketplaceStore();
 const { loading: pending, error: homeError } = storeToRefs(marketplaceStore);
 
 // Runs on the server for SSR; Pinia state is hydrated to the client, so no refetch.
-await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome());
+await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome(), { lazy: true });
 
 const appliedBudget = ref<number | null>(null);
 

@@ -141,3 +141,42 @@ export interface ApiMerchantDetail extends ApiListingMerchant {
 export interface MerchantPage extends ApiMerchantDetail {
   nextCursor: string | null;
 }
+
+/** Filters accepted by GET /search. Money values are in kobo, like the rest of the API. */
+export interface SearchQuery {
+  q?: string;
+  sort?: ListingSort;
+  /** Brand facet ids, e.g. ["Tecno", "Infinix"] (sent as repeated `brand=` params). */
+  brand?: string[];
+  /** Merchant ids (repeated `merchant=` params). */
+  merchant?: string[];
+  /** Condition ids, e.g. ["new", "used"] (repeated `condition=` params). */
+  condition?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  maxMonthly?: number;
+  limit?: number;
+  cursor?: string;
+}
+
+/** Sent instead of results when nothing matches. */
+export interface ApiSearchEmpty {
+  message: string;
+  /** Only present when the query itself matched nothing (not when filters did). */
+  suggestedCategories?: ApiCategory[];
+}
+
+/** Raw `data` payload of GET /search on the upstream API. */
+export interface ApiSearchResults {
+  listings: ApiListing[];
+  /** Comes back as `{}` when there are no results. */
+  facets: Partial<ApiCategoryFacets>;
+  applied: { sort: ListingSort; merchants?: string[]; maxMonthlyKobo?: number; [filter: string]: unknown };
+  page: { total: number; cursor?: string; nextCursor?: string };
+  empty?: ApiSearchEmpty;
+}
+
+/** What our /api/search route returns to the app. */
+export interface SearchPage extends ApiSearchResults {
+  nextCursor: string | null;
+}

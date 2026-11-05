@@ -22,11 +22,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 const route = useRoute();
 const router = useRouter();
 const query = ref(typeof route.query.q === "string" ? route.query.q : "");
+watch(
+  () => route.query.q,
+  (q) => (query.value = typeof q === "string" ? q : ""),
+);
 
 function submit() {
   router.push({ path: "/search", query: query.value ? { q: query.value } : {} });

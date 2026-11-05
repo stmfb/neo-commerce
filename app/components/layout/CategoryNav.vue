@@ -40,5 +40,5 @@ const { categories, loading } = storeToRefs(marketplaceStore);
 
 // Varied widths so the placeholder reads like real category names.
 const shimmerWidths = [56, 64, 40, 112, 48, 60];
-await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome());
+await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome(), { lazy: true });
 </script>
