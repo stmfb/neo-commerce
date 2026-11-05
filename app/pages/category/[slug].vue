@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-    <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: category?.name ?? 'Category' }]" />
+    <Breadcrumb class="mb-4" :items="breadcrumbItems" />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <FilterRail
@@ -16,9 +16,9 @@
 
       <div class="min-w-0">
         <div class="mb-4">
-          <h1 class="text-2xl font-bold text-primary-dark-900">{{ category?.name }}</h1>
+          <h1 class="text-2xl font-bold text-primary-dark-900">{{ categoryName }}</h1>
           <p class="mt-1 text-sm text-primary-dark-400">
-            {{ categoryProducts.length }} items from {{ sellerOptions.length }} sellers · filtered to
+            {{ totalItems }} items from {{ sellerOptions.length }} sellers · filtered to
             {{ formatNaira(maxMonthly) }}/mo
           </p>
         </div>
@@ -32,9 +32,24 @@
           </button>
         </div>
 
-        <ProductGrid v-if="filteredProducts.length" :products="filteredProducts" />
+        <StatusBanner v-if="error" tone="warning" title="We couldn't load this category" class="mb-4">
+          Please refresh to try again.
+        </StatusBanner>
 
-        <EmptyState v-else :title="emptyTitle" :description="emptyDescription">
+        <div v-if="pending && !categoryProducts.length" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div v-for="n in 8" :key="n" class="aspect-[3/4] animate-pulse rounded-xl bg-slate-100" />
+        </div>
+
+        <template v-else-if="filteredProducts.length">
+          <ProductGrid :products="filteredProducts" demote-out-of-stock />
+          <div v-if="nextCursor !== null" class="mt-6 flex justify-center">
+            <NcButton variant="secondary" size="sm" :disabled="loadingMore" @click="loadMore">
+              {{ loadingMore ? "Loading…" : "Load more" }}
+            </NcButton>
+          </div>
+        </template>
+
+        <EmptyState v-else-if="!error" :title="emptyTitle" :description="emptyDescription">
           <template #icon>
             <svg class="h-6 w-6" viewBox="0 0 20 20" fill="none">
               <path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7L3 4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
@@ -56,15 +71,51 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { getCategory } from "~/data/categories";
-import { getProductsByCategory } from "~/data/products";
+import type { Product } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 
 const route = useRoute();
 const { approvedLimit } = useAuth();
+const categoryStore = useCategoryStore();
+const { loading: pending, loadingMore, error, nextCursor } = storeToRefs(categoryStore);
 
 const slug = computed(() => route.params.slug as string);
-const category = computed(() => getCategory(slug.value));
-const categoryProducts = computed(() => getProductsByCategory(slug.value));
+const categoryName = computed(() => {
+  const fromApi = categoryStore.categoryName;
+  if (fromApi) return fromApi;
+  const known = getCategory(slug.value)?.name;
+  if (known) return known;
+  return slug.value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+});
+
+await useAsyncData(
+  () => `category-listings-${slug.value}`,
+  () => categoryStore.fetchListings(slug.value),
+  { watch: [slug] },
+);
+
+const loadMore = () => categoryStore.loadMore();
+
+const categoryProducts = computed<Product[]>(() =>
+  categoryStore.listings.map((listing) => listingToProduct(listing, slug.value)),
+);
+
+const totalItems = computed(() => categoryStore.total || categoryProducts.value.length);
+
+const breadcrumbItems = computed(() => {
+  const trail = categoryStore.breadcrumb.length
+    ? categoryStore.breadcrumb
+    : [{ label: categoryName.value, slug: slug.value }];
+  return [
+    { label: "Home", to: "/" },
+    ...trail.map((crumb, i) =>
+      i === trail.length - 1 ? { label: crumb.label } : { label: crumb.label, to: `/category/${crumb.slug}` },
+    ),
+  ];
+});
+
+const sellerName = (product: Product) =>
+  product.merchantName ?? getMerchant(product.merchantSlug)?.name ?? product.merchantSlug;
 
 const maxMonthly = ref(approvedLimit.value);
 const selectedSubCategories = ref<string[]>([]);
@@ -83,15 +134,19 @@ watch(slug, () => {
 const subCategoryOptions = computed(() => {
   const counts = new Map<string, number>();
   for (const product of categoryProducts.value) {
+    if (!product.subCategory) continue;
     counts.set(product.subCategory, (counts.get(product.subCategory) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
 });
 
+// Facets cover the whole category, not just the pages loaded so far.
 const sellerOptions = computed(() => {
+  const facets = categoryStore.facets?.merchants;
+  if (facets?.length) return facets.map(({ label, count }) => ({ label, count }));
   const counts = new Map<string, number>();
   for (const product of categoryProducts.value) {
-    const name = getMerchant(product.merchantSlug)?.name ?? product.merchantSlug;
+    const name = sellerName(product);
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
@@ -100,8 +155,8 @@ const sellerOptions = computed(() => {
 function matchesEverythingExceptBudget(product: (typeof categoryProducts.value)[number]) {
   const merchant = getMerchant(product.merchantSlug);
   if (selectedSubCategories.value.length && !selectedSubCategories.value.includes(product.subCategory)) return false;
-  if (selectedSellers.value.length && !selectedSellers.value.includes(merchant?.name ?? "")) return false;
-  if (officialOnly.value && !merchant?.official) return false;
+  if (selectedSellers.value.length && !selectedSellers.value.includes(sellerName(product))) return false;
+  if (officialOnly.value && !(merchant?.official ?? product.merchantVerified)) return false;
   if (inStockOnly.value && product.stock === "out") return false;
   return true;
 }

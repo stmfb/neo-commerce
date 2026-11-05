@@ -5,7 +5,15 @@
     :class="isOut ? 'opacity-70' : ''"
   >
     <div class="relative aspect-square p-3">
-      <ImagePlaceholder class="h-full w-full" />
+      <img
+        v-if="product.image && !imageFailed"
+        :src="product.image"
+        :alt="product.name"
+        loading="lazy"
+        class="h-full w-full rounded-xl object-contain"
+        @error="imageFailed = true"
+      />
+      <ImagePlaceholder v-else class="h-full w-full" />
       <span
         v-if="isOut"
         class="absolute left-4 top-4 rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-primary-dark-600"
@@ -28,23 +36,26 @@
         {{ formatNaira(product.price) }}
       </p>
       <p class="flex items-center gap-1 text-xs font-semibold text-primary-600">
-        Sold by {{ merchant?.name }}
-        <VerifiedBadge v-if="merchant?.verified" size="sm" />
+        Sold by {{ merchantName }}
+        <VerifiedBadge v-if="merchantVerified" size="sm" />
       </p>
       <p v-if="product.stock === 'low'" class="text-xs font-medium text-rose-600">
-        Only {{ product.stockCount }} left
+        {{ product.stockCount ? `Only ${product.stockCount} left` : "Low stock" }}
       </p>
     </div>
   </NuxtLink>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { Product } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 
 const props = defineProps<{ product: Product }>();
 
 const merchant = computed(() => getMerchant(props.product.merchantSlug));
+const merchantName = computed(() => props.product.merchantName ?? merchant.value?.name);
+const merchantVerified = computed(() => props.product.merchantVerified ?? merchant.value?.verified);
 const isOut = computed(() => props.product.stock === "out");
+const imageFailed = ref(false);
 </script>

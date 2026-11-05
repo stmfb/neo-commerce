@@ -3,6 +3,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ["@nuxtjs/tailwindcss", "@pinia/nuxt"],
   css: ["~/assets/css/main.css"],
+  runtimeConfig: {
+    // Server-only: upstream NeoCash API. Overridden by NUXT_API_BASE in .env.
+    // The browser only ever talks to our own /api/** routes (see server/api).
+    apiBase: "",
+  },
   components: [{ path: "~/components", pathPrefix: false }],
   app: {
     head: {

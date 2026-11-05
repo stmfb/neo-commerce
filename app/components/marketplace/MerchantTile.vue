@@ -19,8 +19,9 @@
     class="overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-card"
   >
     <div class="flex h-24 items-center justify-center" :class="merchant.tileColor">
-      <span class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-primary-dark-900">
-        {{ merchant.initials }}
+      <span class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-bold text-primary-dark-900">
+        <img v-if="merchant.logo && !logoFailed" :src="merchant.logo" :alt="merchant.name" class="h-full w-full object-cover" @error="logoFailed = true" />
+        <template v-else>{{ merchant.initials }}</template>
       </span>
     </div>
     <div class="flex items-center justify-between gap-2 px-4 py-3 text-primary-500">
@@ -31,9 +32,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import type { Merchant } from "~/data/merchants";
 
 withDefaults(defineProps<{ merchant: Merchant; variant?: "rail" | "card" }>(), {
   variant: "card",
 });
+
+const logoFailed = ref(false);
 </script>

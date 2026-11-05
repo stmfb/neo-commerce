@@ -19,9 +19,13 @@ export interface Product {
   id: string;
   slug: string;
   name: string;
+  image?: string;
   price: number;
   fromMonthly: number;
   merchantSlug: string;
+  /** Set for API listings, which carry merchant info inline. */
+  merchantName?: string;
+  merchantVerified?: boolean;
   categorySlug: string;
   subCategory: string;
   stock: StockState;
