@@ -1,9 +1,6 @@
 <template>
-  <div v-if="pending && !merchant" class="mx-auto max-w-[1320px] space-y-6 px-4 py-6 sm:px-6">
-    <div class="h-48 animate-pulse rounded-2xl bg-slate-100" />
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-      <div v-for="n in 8" :key="n" class="aspect-[3/4] animate-pulse rounded-xl bg-slate-100" />
-    </div>
+  <div v-if="pending && !merchant" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <ShimmerMerchantPage />
   </div>
 
   <div v-else-if="merchant" class="mx-auto max-w-[1320px] space-y-6 px-4 py-6 sm:px-6">
@@ -11,22 +8,35 @@
       :items="[{ label: 'Home', to: '/' }, { label: 'Official Stores', to: '/official-stores' }, { label: merchant.name }]" />
 
     <div class="overflow-hidden rounded-2xl border border-line bg-white">
-      <img v-if="banner" :src="banner" :alt="`${merchant.name} banner`" class="h-24 w-full object-cover sm:h-28" />
-      <div v-else class="h-24 bg-primary-dark sm:h-28" />
+      <ShimmerImg
+        :src="banner"
+        :alt="`${merchant.name} banner`"
+        loading="eager"
+        class="h-24 w-full sm:h-28"
+        img-class="h-full w-full object-cover"
+      >
+        <template #fallback>
+          <div class="h-full w-full bg-primary-dark" />
+        </template>
+      </ShimmerImg>
       <div class="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
           <div class="-mt-10 flex items-end gap-4">
-            <img
-              v-if="merchant.logo"
+            <ShimmerImg
               :src="merchant.logo"
               :alt="`${merchant.name} logo`"
-              class="h-20 w-20 shrink-0 rounded-2xl border-4 border-white bg-white object-cover" />
-            <span
-              v-else
-              class="font-display flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white text-xl font-bold text-white"
-              :class="merchant.tileColor">
-              {{ merchant.initials }}
-            </span>
+              loading="eager"
+              class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-white"
+              img-class="h-full w-full object-cover"
+            >
+              <template #fallback>
+                <span
+                  class="font-display flex h-full w-full items-center justify-center text-xl font-bold text-white"
+                  :class="merchant.tileColor">
+                  {{ merchant.initials }}
+                </span>
+              </template>
+            </ShimmerImg>
             <div class="font-display font-bold flex items-center gap-2 pb-1">
               <h1 class="text-2xl font-bold text-primary-dark">{{ merchant.name }}</h1>
               <VerifiedBadge v-if="merchant.verified" size="md" class="text-primary-500" />
@@ -71,9 +81,10 @@
 
     <template v-if="listings.length">
       <ProductGrid :products="listings" demote-out-of-stock />
+      <ShimmerProductGrid v-if="loadingMore" :count="4" />
       <div v-if="hasMore" class="flex justify-center">
-        <NcButton variant="secondary" size="sm" :disabled="loadingMore" @click="merchantStore.loadMore()">
-          {{ loadingMore ? "Loading…" : "Load more" }}
+        <NcButton variant="secondary" size="sm" :loading="loadingMore" @click="merchantStore.loadMore()">
+          {{ loadingMore ? "Loading more…" : "Load more" }}
         </NcButton>
       </div>
     </template>

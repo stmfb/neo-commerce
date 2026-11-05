@@ -11,6 +11,9 @@
         All categories
       </button>
       <span class="h-4 w-px shrink-0 bg-line" />
+      <ShimmerRegion v-if="loading && !categories.length" label="Loading categories…" class="flex items-center gap-6">
+        <Shimmer v-for="width in shimmerWidths" :key="width" class="h-4 shrink-0" :style="{ width: `${width}px` }" />
+      </ShimmerRegion>
       <NuxtLink
         v-for="category in categories"
         :key="category.slug"
@@ -28,7 +31,14 @@
 </template>
 
 <script setup lang="ts">
-import { categories } from "~/data/categories";
-
 defineProps<{ activeSlug?: string }>();
+
+// The backend has no standalone categories endpoint; the list ships with the
+// home payload. Same key as the home page, so it is fetched once and shared.
+const marketplaceStore = useMarketplaceStore();
+const { categories, loading } = storeToRefs(marketplaceStore);
+
+// Varied widths so the placeholder reads like real category names.
+const shimmerWidths = [56, 64, 40, 112, 48, 60];
+await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome());
 </script>

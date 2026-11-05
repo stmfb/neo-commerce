@@ -2,8 +2,11 @@
   <div class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
     <Breadcrumb class="mb-4" :items="breadcrumbItems" />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+    <ShimmerCategoryPage v-if="initialLoading" />
+
+    <div v-else class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[280px_1fr]': !notFound }">
       <FilterRail
+        v-if="!notFound"
         v-model:max-monthly="maxMonthly"
         v-model:selected-sub-categories="selectedSubCategories"
         v-model:selected-sellers="selectedSellers"
@@ -17,7 +20,7 @@
       <div class="min-w-0">
         <div class="mb-4">
           <h1 class="text-2xl font-bold text-primary-dark-900">{{ categoryName }}</h1>
-          <p class="mt-1 text-sm text-primary-dark-400">
+          <p v-if="!notFound" class="mt-1 text-sm text-primary-dark-400">
             {{ totalItems }} items from {{ sellerOptions.length }} sellers · filtered to
             {{ formatNaira(maxMonthly) }}/mo
           </p>
@@ -32,24 +35,39 @@
           </button>
         </div>
 
-        <StatusBanner v-if="error" tone="warning" title="We couldn't load this category" class="mb-4">
+        <EmptyState
+          v-if="notFound"
+          title="We couldn't find this category"
+          description="It may have been renamed or removed. Try one of these instead."
+        >
+          <template #actions>
+            <NcButton
+              v-for="category in marketplaceStore.categories"
+              :key="category.slug"
+              :to="`/category/${category.slug}`"
+              variant="secondary"
+              size="sm"
+            >
+              {{ category.name }}
+            </NcButton>
+          </template>
+        </EmptyState>
+
+        <StatusBanner v-else-if="error" tone="warning" title="We couldn't load this category" class="mb-4">
           Please refresh to try again.
         </StatusBanner>
 
-        <div v-if="pending && !categoryProducts.length" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          <div v-for="n in 8" :key="n" class="aspect-[3/4] animate-pulse rounded-xl bg-slate-100" />
-        </div>
-
-        <template v-else-if="filteredProducts.length">
+        <template v-if="filteredProducts.length">
           <ProductGrid :products="filteredProducts" demote-out-of-stock />
+          <ShimmerProductGrid v-if="loadingMore" :count="4" class="mt-4" />
           <div v-if="nextCursor !== null" class="mt-6 flex justify-center">
-            <NcButton variant="secondary" size="sm" :disabled="loadingMore" @click="loadMore">
-              {{ loadingMore ? "Loading…" : "Load more" }}
+            <NcButton variant="secondary" size="sm" :loading="loadingMore" @click="loadMore">
+              {{ loadingMore ? "Loading more…" : "Load more" }}
             </NcButton>
           </div>
         </template>
 
-        <EmptyState v-else-if="!error" :title="emptyTitle" :description="emptyDescription">
+        <EmptyState v-else-if="!error && !notFound" :title="emptyTitle" :description="emptyDescription">
           <template #icon>
             <svg class="h-6 w-6" viewBox="0 0 20 20" fill="none">
               <path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7L3 4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
@@ -77,7 +95,13 @@ import { getMerchant } from "~/data/merchants";
 const route = useRoute();
 const { approvedLimit } = useAuth();
 const categoryStore = useCategoryStore();
-const { loading: pending, loadingMore, error, nextCursor } = storeToRefs(categoryStore);
+const { loading: pending, loadingMore, error, errorStatus, nextCursor } = storeToRefs(categoryStore);
+const notFound = computed(() => errorStatus.value === 404);
+const initialLoading = computed(() => pending.value && !categoryProducts.value.length);
+
+// Category list for the not-found suggestions. Shares the header nav's key, so it's one request.
+const marketplaceStore = useMarketplaceStore();
+await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome());
 
 const slug = computed(() => route.params.slug as string);
 const categoryName = computed(() => {

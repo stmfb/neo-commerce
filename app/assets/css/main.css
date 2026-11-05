@@ -59,3 +59,70 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 1px 4px rgba(17, 19, 37, 0.25);
   cursor: pointer;
 }
+
+/* ---------- Shimmer preloader ----------
+ * `.shimmer` paints a placeholder block with a light sweep across it.
+ * Used by the <Shimmer*> components and by <ShimmerImg> while images load.
+ */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: #eef0f5;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 45%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.55) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Route-change bar (NuxtLoadingIndicator): slide the gradient so it shimmers. */
+.nc-route-shimmer {
+  background-size: 200% 100% !important;
+  animation: shimmer-bar 1.2s linear infinite;
+}
+
+@keyframes shimmer-bar {
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Button loading state: sweep over the button while keeping its colours. */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+  animation: shimmer-sweep 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after,
+  .btn-shimmer::after,
+  .nc-route-shimmer {
+    animation: none;
+  }
+}

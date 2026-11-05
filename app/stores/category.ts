@@ -21,6 +21,8 @@ export const useCategoryStore = defineStore("categoryStore", {
     loading: false,
     loadingMore: false,
     error: null as string | null,
+    /** HTTP status of the last failure, so pages can tell "not found" from "broken". */
+    errorStatus: null as number | null,
   }),
 
   actions: {
@@ -33,10 +35,19 @@ export const useCategoryStore = defineStore("categoryStore", {
     /** Loads the first page of a category, replacing whatever was loaded before. */
     async fetchListings(slug: string, sort: ListingSort = "relevance") {
       try {
+        // New category: drop the old one so the page shows its shimmer, not stale items.
+        if (slug !== this.slug) {
+          this.listings = [];
+          this.breadcrumb = [];
+          this.facets = null;
+          this.total = 0;
+          this.nextCursor = null;
+        }
         this.slug = slug;
         this.sort = sort;
         this.loading = true;
         this.error = null;
+        this.errorStatus = null;
 
         const page = await this.fetchPage(0);
         this.listings = page.listings;
@@ -47,7 +58,11 @@ export const useCategoryStore = defineStore("categoryStore", {
         return true;
       } catch (error: any) {
         this.listings = [];
+        this.breadcrumb = [];
+        this.facets = null;
+        this.total = 0;
         this.nextCursor = null;
+        this.errorStatus = error?.statusCode ?? error?.status ?? null;
         this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
         return false;
       } finally {

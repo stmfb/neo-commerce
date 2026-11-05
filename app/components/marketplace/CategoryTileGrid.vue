@@ -7,13 +7,12 @@
       class="group overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-card"
     >
       <div class="flex h-16 items-center justify-center sm:h-20" :class="category.tileColor">
-        <img
-          v-if="category.image && !failed.has(category.slug)"
+        <ShimmerImg
+          v-if="category.image"
           :src="category.image"
           :alt="category.name"
-          loading="lazy"
-          class="h-full w-full object-contain p-2"
-          @error="failed.add(category.slug)"
+          class="h-full w-full"
+          img-class="h-full w-full object-contain p-2"
         />
       </div>
 
@@ -25,10 +24,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed } from "vue";
 import { categories as fallbackCategories, type Category } from "~/data/categories";
 
 const props = defineProps<{ categories?: Category[] }>();
 const categories = computed(() => props.categories ?? fallbackCategories);
-const failed = reactive(new Set<string>());
 </script>

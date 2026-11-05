@@ -5,15 +5,16 @@
     :class="isOut ? 'opacity-70' : ''"
   >
     <div class="relative aspect-square p-3">
-      <img
-        v-if="product.image && !imageFailed"
+      <ShimmerImg
         :src="product.image"
         :alt="product.name"
-        loading="lazy"
-        class="h-full w-full rounded-xl object-contain"
-        @error="imageFailed = true"
-      />
-      <ImagePlaceholder v-else class="h-full w-full" />
+        class="h-full w-full rounded-xl"
+        img-class="h-full w-full rounded-xl object-contain"
+      >
+        <template #fallback>
+          <ImagePlaceholder class="h-full w-full" />
+        </template>
+      </ShimmerImg>
       <span
         v-if="isOut"
         class="absolute left-4 top-4 rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-primary-dark-600"
@@ -47,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import type { Product } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 
@@ -57,5 +58,4 @@ const merchant = computed(() => getMerchant(props.product.merchantSlug));
 const merchantName = computed(() => props.product.merchantName ?? merchant.value?.name);
 const merchantVerified = computed(() => props.product.merchantVerified ?? merchant.value?.verified);
 const isOut = computed(() => props.product.stock === "out");
-const imageFailed = ref(false);
 </script>

@@ -1,10 +1,6 @@
 <template>
   <div v-if="pending && !product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)_300px]">
-      <div class="aspect-square animate-pulse rounded-xl bg-slate-100" />
-      <div class="h-64 animate-pulse rounded-xl bg-slate-100" />
-      <div class="h-64 animate-pulse rounded-xl bg-slate-100" />
-    </div>
+    <ShimmerProductDetail />
   </div>
 
   <div v-else-if="product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
@@ -13,7 +9,18 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)_300px]">
       <div>
         <template v-if="gallery.length">
-          <img :src="activeImage" :alt="product.name" class="aspect-square w-full rounded-xl object-cover" />
+          <ShimmerImg
+            :key="activeImage"
+            :src="activeImage"
+            :alt="product.name"
+            loading="eager"
+            class="aspect-square w-full rounded-xl"
+            img-class="h-full w-full rounded-xl object-cover"
+          >
+            <template #fallback>
+              <ImagePlaceholder class="h-full w-full" />
+            </template>
+          </ShimmerImg>
           <div v-if="gallery.length > 1" class="mt-3 grid grid-cols-5 gap-2">
             <button
               v-for="(src, i) in gallery"
@@ -23,7 +30,12 @@
               :class="activeImage === src ? 'border-primary-500' : 'border-transparent'"
               @click="activeImageIndex = i"
             >
-              <img :src="src" :alt="`${product.name} image ${i + 1}`" class="aspect-square w-full object-cover" />
+              <ShimmerImg
+                :src="src"
+                :alt="`${product.name} image ${i + 1}`"
+                class="aspect-square w-full"
+                img-class="h-full w-full object-cover"
+              />
             </button>
           </div>
         </template>

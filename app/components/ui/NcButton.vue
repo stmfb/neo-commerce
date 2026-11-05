@@ -3,10 +3,17 @@
     :is="to ? NuxtLink : 'button'"
     :to="to"
     :type="to ? undefined : type"
-    :disabled="!to && disabled"
-    :aria-disabled="disabled"
+    :disabled="!to && (disabled || loading)"
+    :aria-disabled="disabled || loading"
+    :aria-busy="loading || undefined"
     class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
-    :class="[sizeClasses, variantClasses, block ? 'w-full' : '', disabled ? 'pointer-events-none opacity-50' : '']"
+    :class="[
+      sizeClasses,
+      variantClasses,
+      block ? 'w-full' : '',
+      disabled ? 'pointer-events-none opacity-50' : '',
+      loading ? 'btn-shimmer pointer-events-none' : '',
+    ]"
   >
     <slot />
   </component>
@@ -23,6 +30,8 @@ const props = withDefaults(
     size?: "sm" | "md" | "lg";
     to?: string;
     disabled?: boolean;
+    /** Shimmers the button and blocks clicks while an action is in flight. */
+    loading?: boolean;
     block?: boolean;
     type?: "button" | "submit";
   }>(),
@@ -31,6 +40,7 @@ const props = withDefaults(
     size: "md",
     to: undefined,
     disabled: false,
+    loading: false,
     block: false,
     type: "button",
   },

@@ -9,7 +9,13 @@ export const useMarketplaceStore = defineStore("marketplaceStore", {
   }),
 
   actions: {
-    async fetchHome() {
+    /**
+     * Loads the home payload. It is also the only source of the category list
+     * (used by the header nav), so it is skipped when already loaded unless `force`.
+     */
+    async fetchHome(force = false) {
+      if (this.home && !force) return true;
+
       try {
         this.loading = true;
         this.error = null;

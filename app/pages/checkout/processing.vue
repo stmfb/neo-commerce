@@ -1,6 +1,24 @@
 <template>
   <div class="mx-auto flex max-w-[420px] flex-col items-center justify-center px-4 py-24 text-center sm:px-6">
-    <span class="h-12 w-12 animate-spin rounded-full border-4 border-primary-100 border-t-primary-500" />
+    <!-- Shimmering order-summary card: the order being assembled. -->
+    <ShimmerRegion label="Setting up your order" class="w-full">
+      <div class="w-full space-y-4 rounded-2xl border border-line bg-white p-5 text-left" aria-hidden="true">
+        <div class="flex items-center gap-3">
+          <Shimmer rounded="xl" class="h-12 w-12 shrink-0" />
+          <div class="flex-1 space-y-2">
+            <Shimmer class="h-4 w-3/4" />
+            <Shimmer class="h-3 w-1/2" />
+          </div>
+        </div>
+        <div class="space-y-2 border-t border-line pt-4">
+          <div v-for="row in 3" :key="row" class="flex justify-between gap-6">
+            <Shimmer class="h-3.5 w-1/3" />
+            <Shimmer class="h-3.5 w-1/4" />
+          </div>
+        </div>
+        <Shimmer rounded="xl" class="h-10 w-full" />
+      </div>
+    </ShimmerRegion>
     <h1 class="mt-6 text-xl font-bold text-primary-dark-900">
       {{ takingLong ? "Still working on it" : "Setting up your order" }}
     </h1>

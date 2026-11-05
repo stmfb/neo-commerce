@@ -33,10 +33,12 @@
       <SectionHeader title="Shop by category" />
       <CategoryTileGrid :categories="homeCategories" />
     </section>
+    <section v-else-if="pending">
+      <ShimmerSectionHeader />
+      <ShimmerCategoryGrid />
+    </section>
 
-    <template v-if="pending">
-      <div v-for="n in 2" :key="n" class="h-72 animate-pulse rounded-2xl bg-slate-100" />
-    </template>
+    <ShimmerHomeRails v-if="pending && !displayedRails.length" />
 
     <section v-for="rail in displayedRails" :key="rail.id">
       <SectionHeader
@@ -53,6 +55,12 @@
       <SectionHeader title="Official stores" action-label="See all stores" action-to="/official-stores" />
       <div class="grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-6">
         <MerchantTile v-for="merchant in officialMerchants" :key="merchant.slug" :merchant="merchant" variant="card" />
+      </div>
+    </section>
+    <section v-else-if="pending" class="rounded-2xl border border-line bg-white p-5">
+      <ShimmerSectionHeader action />
+      <div class="border-t border-line pt-4">
+        <ShimmerMerchantGrid />
       </div>
     </section>
 

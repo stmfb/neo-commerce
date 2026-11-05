@@ -20,8 +20,11 @@
   >
     <div class="flex h-24 items-center justify-center" :class="merchant.tileColor">
       <span class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-bold text-primary-dark-900">
-        <img v-if="merchant.logo && !logoFailed" :src="merchant.logo" :alt="merchant.name" class="h-full w-full object-cover" @error="logoFailed = true" />
-        <template v-else>{{ merchant.initials }}</template>
+        <ShimmerImg :src="merchant.logo" :alt="merchant.name" class="h-full w-full" img-class="h-full w-full object-cover">
+          <template #fallback>
+            <span class="flex h-full w-full items-center justify-center">{{ merchant.initials }}</span>
+          </template>
+        </ShimmerImg>
       </span>
     </div>
     <div class="flex items-center justify-between gap-2 px-4 py-3 text-primary-500">
@@ -32,12 +35,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import type { Merchant } from "~/data/merchants";
 
 withDefaults(defineProps<{ merchant: Merchant; variant?: "rail" | "card" }>(), {
   variant: "card",
 });
-
-const logoFailed = ref(false);
 </script>
