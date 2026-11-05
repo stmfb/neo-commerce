@@ -36,9 +36,13 @@ export const useApiFetch = async <T>(
     return (response as any)?.data ?? response;
   } catch (err: any) {
     const errData = err.data ?? err.response?._data;
-    const errMessage =
+    // Upstream errors look like `{ error: { code, message, retryable } }`,
+    // but tolerate a flat `{ message }` / `{ error: "..." }` too.
+    const nested = typeof errData?.error === "object" ? errData.error : undefined;
+    const errMessage: string =
       errData?.message ||
-      errData?.error ||
+      nested?.message ||
+      (typeof errData?.error === "string" ? errData.error : undefined) ||
       err.statusMessage ||
       `Failed to fetch ${endpoint}`;
     const errStatus = err.status ?? err.response?.status ?? 500;
@@ -48,6 +52,8 @@ export const useApiFetch = async <T>(
     throw createError({
       statusCode: errStatus,
       statusMessage: errMessage,
+      // Lets stores branch on `error.data.code` (e.g. "not_found").
+      data: nested ? { code: nested.code, message: nested.message, retryable: nested.retryable } : undefined,
     });
   }
 };

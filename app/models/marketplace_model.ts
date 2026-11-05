@@ -91,3 +91,53 @@ export interface CategoryListingsQuery {
   limit?: number;
   cursor?: number;
 }
+
+export interface ApiListingVariant {
+  id: string;
+  /** e.g. `{ size: "M" }` or `{ colour: "Black", storage: "128GB" }` */
+  attributes: Record<string, string>;
+  priceKobo: number;
+  instalmentFromKobo?: number;
+  stock: ApiStock;
+}
+
+export interface ApiListingMerchant {
+  id: string;
+  name: string;
+  logo?: string;
+  verified: boolean;
+  /** Days the buyer has to return an item. */
+  returnsWindow: number;
+  fulfilmentEtaDays: { min: number; max: number };
+  supportContact: { email: string; phone: string; hours: string };
+}
+
+/** Raw `data` payload of GET /listings/:id on the upstream API. */
+export interface ApiListingDetail extends ApiListing {
+  description?: string;
+  gallery?: string[];
+  /** Omitted entirely for single-SKU listings. */
+  variants?: ApiListingVariant[];
+  merchant: ApiListingMerchant;
+  maxQuantity?: number;
+  notifyMeSupported?: boolean;
+}
+
+/** Merchant availability. Only "live" is confirmed so far; anything else is treated as not taking orders. */
+export type ApiMerchantStatus = "live" | (string & {});
+
+/** Raw `data` payload of GET /merchants/:id on the upstream API. */
+export interface ApiMerchantDetail extends ApiListingMerchant {
+  banner?: string;
+  categories?: ApiCategory[];
+  returnsPolicy?: string;
+  status: ApiMerchantStatus;
+  listings: ApiListing[];
+  /** `nextCursor` is only present when `limit` was sent and more pages remain. */
+  page: { total: number; cursor?: string; nextCursor?: string };
+}
+
+/** What our /api/merchant/:id route returns to the app. */
+export interface MerchantPage extends ApiMerchantDetail {
+  nextCursor: string | null;
+}

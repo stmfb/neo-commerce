@@ -41,7 +41,7 @@
 
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium text-primary-dark-700">Quantity</span>
-          <QuantityStepper v-model="quantity" :max="product.stockCount ?? 10" />
+          <QuantityStepper v-model="quantity" :max="quantityMax" />
         </div>
 
         <NcButton block size="lg" :disabled="!canAddToCart" @click="handleAdd">
@@ -76,14 +76,25 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { Product } from "~/data/products";
-import { getMerchant } from "~/data/merchants";
+import { getMerchant, type Merchant } from "~/data/merchants";
 
-const props = defineProps<{ product: Product; selectedVariants: Record<string, string> }>();
+const props = defineProps<{
+  product: Product;
+  selectedVariants: Record<string, string>;
+  /** Merchant from the API; falls back to local demo data when omitted. */
+  merchant?: Merchant;
+  /** Per-order cap from the API (`maxQuantity`). */
+  maxQuantity?: number;
+}>();
 
 const { signedIn, approvedLimit } = useAuth();
 const { addItem } = useCart();
 
-const merchant = computed(() => getMerchant(props.product.merchantSlug));
+const merchant = computed(() => props.merchant ?? getMerchant(props.product.merchantSlug));
+const quantityMax = computed(() => {
+  const caps = [props.product.stockCount, props.maxQuantity].filter((n): n is number => typeof n === "number");
+  return caps.length ? Math.min(...caps) : 10;
+});
 const quantity = ref(1);
 const justAdded = ref(false);
 

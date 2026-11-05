@@ -1,13 +1,38 @@
 <template>
-  <div v-if="product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+  <div v-if="pending && !product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)_300px]">
+      <div class="aspect-square animate-pulse rounded-xl bg-slate-100" />
+      <div class="h-64 animate-pulse rounded-xl bg-slate-100" />
+      <div class="h-64 animate-pulse rounded-xl bg-slate-100" />
+    </div>
+  </div>
+
+  <div v-else-if="product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
     <Breadcrumb class="mb-4" :items="breadcrumbItems" />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)_300px]">
       <div>
-        <ImagePlaceholder class="aspect-square w-full" />
-        <div class="mt-3 grid grid-cols-5 gap-2">
-          <ImagePlaceholder v-for="n in 5" :key="n" class="aspect-square w-full" />
-        </div>
+        <template v-if="gallery.length">
+          <img :src="activeImage" :alt="product.name" class="aspect-square w-full rounded-xl object-cover" />
+          <div v-if="gallery.length > 1" class="mt-3 grid grid-cols-5 gap-2">
+            <button
+              v-for="(src, i) in gallery"
+              :key="src"
+              type="button"
+              class="overflow-hidden rounded-lg border-2"
+              :class="activeImage === src ? 'border-primary-500' : 'border-transparent'"
+              @click="activeImageIndex = i"
+            >
+              <img :src="src" :alt="`${product.name} image ${i + 1}`" class="aspect-square w-full object-cover" />
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <ImagePlaceholder class="aspect-square w-full" />
+          <div class="mt-3 grid grid-cols-5 gap-2">
+            <ImagePlaceholder v-for="n in 5" :key="n" class="aspect-square w-full" />
+          </div>
+        </template>
       </div>
 
       <div class="space-y-5">
@@ -80,37 +105,81 @@
         </div>
       </div>
 
-      <ProductBuyBox :product="product" :selected-variants="selectedVariants" />
+      <ProductBuyBox
+        :product="product"
+        :selected-variants="selectedVariants"
+        :merchant="merchant"
+        :max-quantity="apiListing?.maxQuantity"
+      />
     </div>
+  </div>
+
+  <div v-else class="mx-auto max-w-[1320px] px-4 py-16 sm:px-6">
+    <EmptyState :title="notFound ? 'This item is no longer available' : 'We could not load this item'"
+      :description="notFound ? 'It may have been removed by the seller.' : 'Please refresh to try again.'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { getProduct, type ProductVariantGroup } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 import { getCategory } from "~/data/categories";
 
 const route = useRoute();
-const product = computed(() => getProduct(route.params.slug as string));
-const merchant = computed(() => (product.value ? getMerchant(product.value.merchantSlug) : undefined));
+const slug = computed(() => route.params.slug as string);
+
+const listingStore = useListingStore();
+const { listing, loading: pending, errorStatus } = storeToRefs(listingStore);
+const notFound = computed(() => errorStatus.value === 404);
+
+// Local demo products (e.g. recently viewed) still resolve without an API call.
+const localProduct = computed(() => getProduct(slug.value));
+
+await useAsyncData(
+  () => `listing-${slug.value}`,
+  () => (localProduct.value ? Promise.resolve(true) : listingStore.fetchListing(slug.value)),
+  { watch: [slug] },
+);
+
+const apiListing = computed(() => (listing.value?.listingId === slug.value ? listing.value : null));
+
+const product = computed(
+  () => localProduct.value ?? (apiListing.value ? listingDetailToProduct(apiListing.value) : undefined),
+);
+const merchant = computed(() => {
+  if (apiListing.value) return listingMerchantToMerchant(apiListing.value.merchant);
+  return product.value ? getMerchant(product.value.merchantSlug) : undefined;
+});
 const category = computed(() => (product.value ? getCategory(product.value.categorySlug) : undefined));
+
+const gallery = computed(() => (apiListing.value ? listingStore.gallery : []));
+const activeImageIndex = ref(0);
+const activeImage = computed(() => gallery.value[activeImageIndex.value] ?? gallery.value[0]);
 
 const selectedVariants = reactive<Record<string, string>>({});
 
-if (product.value?.variants) {
-  for (const group of product.value.variants) {
-    const firstAvailable = group.options.find((option) => option.inStock) ?? group.options[0];
-    selectedVariants[group.name] = firstAvailable.label;
-  }
-}
+watch(
+  product,
+  (current) => {
+    activeImageIndex.value = 0;
+    for (const key of Object.keys(selectedVariants)) delete selectedVariants[key];
+    for (const group of current?.variants ?? []) {
+      const firstAvailable = group.options.find((option) => option.inStock) ?? group.options[0];
+      if (firstAvailable) selectedVariants[group.name] = firstAvailable.label;
+    }
+  },
+  { immediate: true },
+);
 
 const breadcrumbItems = computed(() => {
   if (!product.value) return [{ label: "Home", to: "/" }];
   return [
     { label: "Home", to: "/" },
-    { label: category.value?.name ?? "Category", to: `/category/${product.value.categorySlug}` },
-    { label: product.value.subCategory },
+    ...(product.value.categorySlug
+      ? [{ label: category.value?.name ?? "Category", to: `/category/${product.value.categorySlug}` }]
+      : []),
+    ...(product.value.subCategory ? [{ label: product.value.subCategory }] : []),
     { label: product.value.name },
   ];
 });
