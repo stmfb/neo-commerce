@@ -21,7 +21,7 @@
       </ShimmerImg>
       <div class="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
-          <div class="-mt-10 flex items-end gap-4">
+          <div class="-mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
             <ShimmerImg
               :src="merchant.logo"
               :alt="`${merchant.name} logo`"
@@ -37,8 +37,8 @@
                 </span>
               </template>
             </ShimmerImg>
-            <div class="font-display font-bold flex items-center gap-2 pb-1">
-              <h1 class="text-2xl font-bold text-primary-dark">{{ merchant.name }}</h1>
+            <div class="font-display flex min-w-0 flex-wrap items-center gap-2 font-bold sm:pb-1">
+              <h1 class="text-xl font-bold text-primary-dark sm:text-2xl">{{ merchant.name }}</h1>
               <VerifiedBadge v-if="merchant.verified" size="md" class="text-primary-500" />
               <Pill v-if="merchant.official" tone="success">Official store</Pill>
             </div>
@@ -57,17 +57,17 @@
             </NuxtLink>
           </div>
         </div>
-        <div class="flex shrink-0 gap-6">
+        <div class="grid shrink-0 grid-cols-3 gap-3 border-t border-line pt-4 sm:flex sm:gap-6 sm:border-0 sm:pt-0">
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ totalListings }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ totalListings }}</p>
             <p class="text-xs text-primary-dark-400">listings</p>
           </div>
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ deliveryWindow }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ deliveryWindow }}</p>
             <p class="text-xs text-primary-dark-400">typical delivery</p>
           </div>
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ returnsWindow }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ returnsWindow }}</p>
             <p class="text-xs text-primary-dark-400">returns window</p>
           </div>
         </div>

@@ -7,7 +7,7 @@
         <Shimmer rounded="sm" class="h-24 w-full sm:h-28" />
         <div class="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
           <div>
-            <div class="-mt-10 flex items-end gap-4">
+            <div class="-mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
               <div class="relative h-20 w-20 shrink-0 rounded-2xl border-4 border-white bg-white">
                 <Shimmer rounded="xl" class="h-full w-full" />
               </div>
@@ -20,7 +20,7 @@
               </div>
             </div>
           </div>
-          <div class="flex shrink-0 gap-6">
+          <div class="grid shrink-0 grid-cols-3 gap-3 border-t border-line pt-4 sm:flex sm:gap-6 sm:border-0 sm:pt-0">
             <div v-for="n in 3" :key="n" class="space-y-2">
               <Shimmer class="h-7 w-14" />
               <Shimmer class="h-3 w-20" />

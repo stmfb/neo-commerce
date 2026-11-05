@@ -3,8 +3,8 @@
     <PromoBar />
     <div class="border-b border-line bg-white">
       <div class="mx-auto max-w-[1320px] px-4 py-4 sm:px-6 sm:py-5">
-        <div class="flex items-center gap-4">
-          <NuxtLink to="/" class="shrink-0">
+        <div class="flex min-w-0 items-center gap-2 sm:gap-4">
+          <NuxtLink to="/" class="min-w-0 shrink">
             <BrandLogo />
           </NuxtLink>
 
@@ -12,7 +12,7 @@
 
           <AffordabilityChip class="hidden sm:flex" :signed-in="signedIn" :approved-limit="approvedLimit" />
 
-          <div class="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+          <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:ml-0 sm:gap-2">
             <AccountMenu />
             <CartIndicator />
           </div>

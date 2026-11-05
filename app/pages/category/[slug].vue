@@ -5,8 +5,33 @@
     <ShimmerCategoryPage v-if="initialLoading" />
 
     <div v-else class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[280px_1fr]': !notFound }">
+      <!-- Phones/tablets: filters collapse behind a toggle so products are visible first. -->
+      <button
+        v-if="!notFound"
+        type="button"
+        class="flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-primary-dark-900 lg:hidden"
+        :aria-expanded="filtersOpen"
+        aria-controls="category-filters"
+        @click="filtersOpen = !filtersOpen"
+      >
+        <span class="flex items-center gap-2">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none">
+            <path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          Filters
+          <span v-if="activeChips.length" class="rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
+            {{ activeChips.length }}
+          </span>
+        </span>
+        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': filtersOpen }" viewBox="0 0 20 20" fill="none">
+          <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
       <FilterRail
         v-if="!notFound"
+        id="category-filters"
+        :class="filtersOpen ? 'block' : 'hidden lg:block'"
         v-model:max-monthly="maxMonthly"
         v-model:selected-sub-categories="selectedSubCategories"
         v-model:selected-sellers="selectedSellers"
@@ -98,6 +123,7 @@ const categoryStore = useCategoryStore();
 const { loading: pending, loadingMore, error, errorStatus, nextCursor } = storeToRefs(categoryStore);
 const notFound = computed(() => errorStatus.value === 404);
 const initialLoading = computed(() => pending.value && !categoryProducts.value.length);
+const filtersOpen = ref(false);
 
 // Category list for the not-found suggestions. Shares the header nav's key, so it's one request.
 const marketplaceStore = useMarketplaceStore();
@@ -148,6 +174,7 @@ const officialOnly = ref(false);
 const inStockOnly = ref(false);
 
 watch(slug, () => {
+  filtersOpen.value = false;
   maxMonthly.value = approvedLimit.value;
   selectedSubCategories.value = [];
   selectedSellers.value = [];

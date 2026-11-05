@@ -2,15 +2,15 @@
   <div class="relative shrink-0">
     <button
       type="button"
-      class="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium text-primary-dark-900 hover:bg-slate-50"
+      class="flex items-center gap-1.5 whitespace-nowrap rounded-lg p-2 text-sm font-medium text-primary-dark-900 hover:bg-slate-50"
       @click="open = !open"
     >
       <svg class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="none">
         <circle cx="10" cy="6.5" r="3" stroke="currentColor" stroke-width="1.5" />
         <path d="M3.5 17c1-3.3 3.8-5 6.5-5s5.5 1.7 6.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg>
-      <span>{{ signedIn ? firstName : "Sign in" }}</span>
-      <svg class="h-3.5 w-3.5 shrink-0 text-primary-dark-400" viewBox="0 0 20 20" fill="none">
+      <span class="sr-only min-[400px]:not-sr-only">{{ signedIn ? firstName : "Sign in" }}</span>
+      <svg class="hidden h-3.5 w-3.5 shrink-0 text-primary-dark-400 min-[400px]:block" viewBox="0 0 20 20" fill="none">
         <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
