@@ -47,9 +47,16 @@
           <QuantityStepper v-model="quantity" :max="quantityMax" />
         </div>
 
-        <NcButton block size="lg" :disabled="!canAddToCart" :loading="adding" @click="handleAdd">
+        <NcButton block size="lg" :disabled="!canAddToCart" :loading="adding || afterSignIn?.status === 'adding'" @click="handleAdd">
           {{ justAdded ? "Added to cart ✓" : "Add to cart" }}
         </NcButton>
+        <p v-if="afterSignIn?.status === 'added'" role="status" class="text-xs font-medium text-emerald-600">
+          You're signed in, and it's in your cart.
+          <NuxtLink to="/cart" class="font-semibold underline">View cart</NuxtLink>
+        </p>
+        <p v-else-if="!signedIn && canAddToCart" class="text-xs text-primary-dark-400">
+          You'll sign in or create a NeoCash account first, then we'll add this to your cart.
+        </p>
         <p v-if="addError" class="text-xs text-rose-600">{{ addError }}</p>
 
         <div class="space-y-1.5 border-t border-line pt-3 text-xs text-primary-dark-400">
@@ -77,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { Product } from "~/data/products";
 import { getMerchant, type Merchant } from "~/data/merchants";
 
@@ -96,6 +103,7 @@ const props = defineProps<{
 }>();
 
 const affordabilityStore = useAffordabilityStore();
+const cartStore = useCartStore();
 const { addItem } = useCart();
 const { signedIn, requestSession } = useAuth();
 
@@ -138,14 +146,45 @@ const affordability = computed(() => {
   return { text: `Above your ${formatNaira(cap)}/mo ${noun}`, class: "text-amber-600", dot: "bg-amber-500" };
 });
 
+/** How it went, when this item was added for the shopper right after they signed in. */
+const afterSignIn = computed(() =>
+  props.listingId && cartStore.addedAfterSignIn?.listingId === props.listingId ? cartStore.addedAfterSignIn : null,
+);
+watch(
+  afterSignIn,
+  (outcome) => {
+    if (outcome?.status === "failed") addError.value = outcome.message ?? null;
+  },
+  { immediate: true },
+);
+// Said once: leaving the page clears it.
+onBeforeUnmount(() => {
+  if (afterSignIn.value) cartStore.addedAfterSignIn = null;
+});
+
+/** The cart needs an account, so the item waits while they sign in or sign up, then it's added. */
+function addAfterSignIn() {
+  savePendingCartAdd({
+    listingId: props.listingId!,
+    variantId: props.variantId,
+    quantity: quantity.value,
+    title: props.product.name,
+  });
+}
+
 async function handleAdd() {
   if (!canAddToCart.value || !props.listingId) return;
-  if (!signedIn.value) return requestSession();
+  if (!signedIn.value) {
+    addAfterSignIn();
+    return requestSession();
+  }
   adding.value = true;
   addError.value = null;
   const result = await addItem(props.listingId, props.variantId, quantity.value);
   adding.value = false;
   if (!result.ok) {
+    // The session had run out: the cart store has already asked them to sign in again.
+    if (result.code === "unauthorized") return addAfterSignIn();
     addError.value = result.message ?? "We couldn't add this to your cart.";
     return;
   }

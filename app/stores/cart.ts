@@ -19,6 +19,11 @@ export const useCartStore = defineStore("cart", {
     errorCode: null as string | null,
     /** Guards against an older, slower response overwriting a newer cart. */
     requestId: 0,
+    /**
+     * The item added for the shopper straight after they signed in (they'd tapped "Add to
+     * cart" while signed out), so its product page can say how that went.
+     */
+    addedAfterSignIn: null as { listingId: string; status: "adding" | "added" | "failed"; message?: string } | null,
   }),
 
   actions: {
@@ -68,6 +73,21 @@ export const useCartStore = defineStore("cart", {
       return this.run(() =>
         $fetch<ApiCart>("/api/cart/items", { method: "POST", body: { listingId, variantId, quantity } }),
       );
+    },
+
+    /** Adds the item a signed-out shopper tapped "Add to cart" on, now that they're signed in. */
+    async addPendingItem() {
+      const pending = readPendingCartAdd();
+      if (!pending || !useAuthStore().signedIn) return;
+      // Once only, even if it fails: the product page shows why, and they can tap again.
+      clearPendingCartAdd();
+      this.addedAfterSignIn = { listingId: pending.listingId, status: "adding" };
+      const result = await this.addItem(pending.listingId, pending.variantId, pending.quantity);
+      this.addedAfterSignIn = result.ok
+        ? { listingId: pending.listingId, status: "added" }
+        : { listingId: pending.listingId, status: "failed", message: result.message ?? "We couldn't add it to your cart." };
+      // Signing in also starts the header's cart load, which may answer last; show the cart as it is now.
+      if (result.ok) await this.fetchCart();
     },
 
     updateQty(cartItemId: string, quantity: number) {
