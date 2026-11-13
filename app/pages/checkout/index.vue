@@ -3,10 +3,6 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: "checkout" });
-
-const router = useRouter();
-const { isEmpty } = useCart();
-
-router.replace(isEmpty.value ? "/cart" : "/checkout/plan");
+// The plan page loads the cart and sends an empty one back to /cart.
+definePageMeta({ layout: "checkout", redirect: "/checkout/plan" });
 </script>
