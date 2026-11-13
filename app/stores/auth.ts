@@ -43,6 +43,18 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    /** Sets the transaction PIN. The PIN is only passed through, never kept. */
+    async setPin(pin: string): Promise<{ ok: boolean; code?: string | null; message?: string }> {
+      try {
+        await $fetch("/api/me/pin", { method: "POST", body: { pin } });
+        return { ok: true };
+      } catch (error) {
+        const { status, code, message } = apiError(error);
+        if (status === 401) this.requestSession();
+        return { ok: false, code, message };
+      }
+    },
+
     /** No session, or the API rejected it: show signed out and ask the app for one. */
     requestSession() {
       this.signedIn = false;

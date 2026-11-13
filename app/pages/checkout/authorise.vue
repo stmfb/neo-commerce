@@ -154,6 +154,10 @@ async function handleError(res: CheckoutResult, retried: boolean) {
       return router.push("/cart");
     case "already_submitted":
       return router.push("/checkout/processing");
+    case "pin_not_set":
+      // The checkout is kept, so setting a PIN comes straight back here.
+      pin.value = "";
+      return router.push({ path: "/account/pin", query: { redirect: "/checkout/authorise" } });
     case "auth_locked":
       locked.value = true;
       pin.value = "";

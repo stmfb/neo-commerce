@@ -51,7 +51,16 @@
         <NcButton size="sm" :disabled="pin.length !== 4" :loading="confirming" @click="confirm">Confirm</NcButton>
       </div>
     </div>
-    <p v-if="error" class="mt-3 text-xs font-medium text-rose-600">{{ error }}</p>
+    <p v-if="error" class="mt-3 text-xs font-medium text-rose-600">
+      {{ error }}
+      <NuxtLink
+        v-if="needsPin"
+        :to="{ path: '/account/pin', query: { redirect: `/orders/${orderId}` } }"
+        class="ml-1 font-semibold text-primary-600 hover:text-primary-700"
+      >
+        Set your PIN
+      </NuxtLink>
+    </p>
 
     <p v-if="subOrder.trackingRef" class="mt-3 text-xs text-primary-dark-400">Tracking {{ subOrder.trackingRef }}</p>
     <p v-if="support.email || support.phone" class="mt-3 text-xs text-primary-dark-400">
@@ -97,11 +106,14 @@ const askingPin = ref(false);
 const pin = ref("");
 const confirming = ref(false);
 const error = ref("");
+/** The shopper has no PIN yet; the error links to setting one. */
+const needsPin = ref(false);
 
 function cancelPin() {
   askingPin.value = false;
   pin.value = "";
   error.value = "";
+  needsPin.value = false;
 }
 
 async function confirm() {
@@ -109,6 +121,7 @@ async function confirm() {
   error.value = "";
   const result = await confirmDelivery(props.orderId, props.subOrder.subOrderId, pin.value);
   pin.value = "";
+  needsPin.value = result.code === "pin_not_set";
   if (result.ok) askingPin.value = false;
   else error.value = result.message ?? "";
   confirming.value = false;

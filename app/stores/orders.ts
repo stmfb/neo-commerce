@@ -87,15 +87,19 @@ export const useOrdersStore = defineStore("orders", {
     },
 
     /** Confirms a dispatched sub-order arrived, with the shopper's PIN. The caller shows any error. */
-    async confirmDelivery(orderId: string, subOrderId: string, pin: string): Promise<{ ok: boolean; message?: string }> {
+    async confirmDelivery(
+      orderId: string,
+      subOrderId: string,
+      pin: string,
+    ): Promise<{ ok: boolean; code?: string | null; message?: string }> {
       try {
         const path = `/api/orders/${encodeURIComponent(orderId)}/sub-orders/${encodeURIComponent(subOrderId)}/confirm-delivery`;
         this.order = await $fetch<ApiOrderDetail>(path, { method: "POST", body: { pin } });
         return { ok: true };
       } catch (error) {
-        const { status, message } = apiError(error);
+        const { status, code, message } = apiError(error);
         if (status === 401) useAuthStore().requestSession();
-        return { ok: false, message };
+        return { ok: false, code, message };
       }
     },
   },
