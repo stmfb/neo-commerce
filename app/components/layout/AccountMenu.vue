@@ -22,6 +22,7 @@
     >
       <template v-if="signedIn">
         <NuxtLink to="/orders" class="block px-4 py-2 text-sm text-primary-dark-700 hover:bg-slate-50">My orders</NuxtLink>
+        <NuxtLink to="/inbox" class="block px-4 py-2 text-sm text-primary-dark-700 hover:bg-slate-50">Inbox</NuxtLink>
         <NuxtLink to="/cart" class="block px-4 py-2 text-sm text-primary-dark-700 hover:bg-slate-50">My cart</NuxtLink>
       </template>
       <button v-else type="button" class="block w-full px-4 py-2 text-left text-sm text-primary-dark-700 hover:bg-slate-50" @click="requestSession">

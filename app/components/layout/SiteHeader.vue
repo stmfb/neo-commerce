@@ -14,6 +14,7 @@
 
           <div class="ml-auto flex shrink-0 items-center gap-0.5 sm:ml-0 sm:gap-2">
             <AccountMenu />
+            <InboxIndicator />
             <CartIndicator />
           </div>
         </div>
