@@ -13,5 +13,10 @@
 </template>
 
 <script setup lang="ts">
-const { itemCount } = useCart();
+const { itemCount, fetchCart } = useCart();
+const { sessionVersion } = useAuth();
+
+// The header is on every page, so it loads the cart once, and again after each sign-in.
+// Browser only: during SSR, $fetch to our own routes doesn't carry the session cookie.
+await useAsyncData("cart", () => fetchCart().then(() => true), { lazy: true, server: false, watch: [sessionVersion] });
 </script>

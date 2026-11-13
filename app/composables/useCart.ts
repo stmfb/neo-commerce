@@ -1,16 +1,25 @@
 export function useCart() {
   const store = useCartStore();
-  const { items, groups, itemCount, sellerCount, subtotal, isEmpty } = storeToRefs(store);
+  const { cart, groups, itemCount, sellerCount, totalKobo, isEmpty, violations, changes, canCheckout, loading, mutating, error } =
+    storeToRefs(store);
   return {
-    items,
+    cart,
     groups,
     itemCount,
     sellerCount,
-    subtotal,
+    totalKobo,
     isEmpty,
+    violations,
+    changes,
+    canCheckout,
+    loading,
+    mutating,
+    error,
+    fetchCart: store.fetchCart,
+    revalidate: store.revalidate,
     addItem: store.addItem,
-    removeItem: store.removeItem,
     updateQty: store.updateQty,
-    clear: store.clear,
+    removeItem: store.removeItem,
+    acceptChanges: store.acceptChanges,
   };
 }

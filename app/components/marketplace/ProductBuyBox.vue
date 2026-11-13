@@ -38,16 +38,19 @@
         <p v-if="variantBlocked" class="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">
           {{ blockedGroupName }} — {{ blockedOptionLabel }} is out of stock. Pick another option to continue.
         </p>
+        <p v-else-if="variantMissing" class="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">
+          This combination isn't available. Pick another option to continue.
+        </p>
 
         <div class="flex items-center justify-between">
           <span class="text-sm font-medium text-primary-dark-700">Quantity</span>
           <QuantityStepper v-model="quantity" :max="quantityMax" />
         </div>
 
-        <NcButton block size="lg" :disabled="!canAddToCart" @click="handleAdd">
+        <NcButton block size="lg" :disabled="!canAddToCart" :loading="adding" @click="handleAdd">
           {{ justAdded ? "Added to cart ✓" : "Add to cart" }}
         </NcButton>
-        <NcButton block size="sm" variant="secondary">Save for later</NcButton>
+        <p v-if="addError" class="text-xs text-rose-600">{{ addError }}</p>
 
         <div class="space-y-1.5 border-t border-line pt-3 text-xs text-primary-dark-400">
           <p>{{ merchant?.deliveryEta }}</p>
@@ -85,10 +88,16 @@ const props = defineProps<{
   merchant?: Merchant;
   /** Per-order cap from the API (`maxQuantity`). */
   maxQuantity?: number;
+  /** The API listing; local demo products have none and can't be added. */
+  listingId?: string;
+  variantId?: string;
+  /** The listing has variants but none matches the picked options. */
+  variantMissing?: boolean;
 }>();
 
 const affordabilityStore = useAffordabilityStore();
 const { addItem } = useCart();
+const { signedIn, requestSession } = useAuth();
 
 const merchant = computed(() => props.merchant ?? getMerchant(props.product.merchantSlug));
 const quantityMax = computed(() => {
@@ -97,6 +106,8 @@ const quantityMax = computed(() => {
 });
 const quantity = ref(1);
 const justAdded = ref(false);
+const adding = ref(false);
+const addError = ref<string | null>(null);
 
 const blockedGroup = computed(() => {
   for (const group of props.product.variants ?? []) {
@@ -109,7 +120,9 @@ const variantBlocked = computed(() => blockedGroup.value !== null);
 const blockedGroupName = computed(() => blockedGroup.value?.group ?? "");
 const blockedOptionLabel = computed(() => blockedGroup.value?.option ?? "");
 
-const canAddToCart = computed(() => props.product.stock !== "out" && !variantBlocked.value);
+const canAddToCart = computed(
+  () => Boolean(props.listingId) && props.product.stock !== "out" && !variantBlocked.value && !props.variantMissing,
+);
 
 const affordability = computed(() => {
   // Compare against the shopper's chosen budget, else their known limit.
@@ -125,10 +138,17 @@ const affordability = computed(() => {
   return { text: `Above your ${formatNaira(cap)}/mo ${noun}`, class: "text-amber-600", dot: "bg-amber-500" };
 });
 
-function handleAdd() {
-  if (!canAddToCart.value) return;
-  const variantLabel = Object.values(props.selectedVariants).join(" · ") || undefined;
-  addItem(props.product, variantLabel, quantity.value);
+async function handleAdd() {
+  if (!canAddToCart.value || !props.listingId) return;
+  if (!signedIn.value) return requestSession();
+  adding.value = true;
+  addError.value = null;
+  const result = await addItem(props.listingId, props.variantId, quantity.value);
+  adding.value = false;
+  if (!result.ok) {
+    addError.value = result.message ?? "We couldn't add this to your cart.";
+    return;
+  }
   justAdded.value = true;
   setTimeout(() => (justAdded.value = false), 1600);
 }

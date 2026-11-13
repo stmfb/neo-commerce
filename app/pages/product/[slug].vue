@@ -51,11 +51,11 @@
         <div>
           <h1 class="text-2xl font-bold text-primary-dark-900">{{ product.name }}</h1>
           <div class="mt-2 flex items-center gap-2">
-            <span :class="product.stock === 'out' ? 'text-primary-dark-300 line-through' : 'text-primary-dark-900'" class="text-2xl font-bold">
-              {{ formatNaira(product.price) }}
+            <span :class="shown.stock === 'out' ? 'text-primary-dark-300 line-through' : 'text-primary-dark-900'" class="text-2xl font-bold">
+              {{ formatNaira(shown.price) }}
             </span>
-            <span v-if="product.bnplEligible && product.fromMonthly" class="rounded-full bg-primary-dark px-2.5 py-1 text-xs font-semibold text-white">
-              from {{ formatNaira(product.fromMonthly) }}/mo
+            <span v-if="shown.bnplEligible && shown.fromMonthly" class="rounded-full bg-primary-dark px-2.5 py-1 text-xs font-semibold text-white">
+              from {{ formatNaira(shown.fromMonthly) }}/mo
             </span>
           </div>
           <NuxtLink :to="`/merchant/${merchant?.slug}`" class="mt-2 flex items-center gap-1 text-sm font-semibold text-primary-600 hover:text-primary-700">
@@ -69,8 +69,8 @@
         </div>
 
         <div class="space-y-2 border-y border-line py-4 text-sm">
-          <p v-if="product.stock === 'low'" class="flex items-center gap-2 text-rose-600">
-            <IconBox /> Only {{ product.stockCount }} left in stock
+          <p v-if="shown.stock === 'low'" class="flex items-center gap-2 text-rose-600">
+            <IconBox /> Only {{ shown.stockCount }} left in stock
           </p>
           <p class="flex items-center gap-2 text-primary-dark-700">
             <IconTruck /> {{ merchant?.deliveryEta }}
@@ -107,7 +107,8 @@
 
         <div v-if="product.description" class="rounded-xl border border-line bg-white p-4">
           <p class="text-sm font-bold text-primary-dark-900">About this item</p>
-          <p class="mt-2 text-sm leading-relaxed text-primary-dark-600">{{ product.description }}</p>
+          <!-- Plain text from the seller; keep its line breaks. -->
+          <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-primary-dark-600">{{ product.description }}</p>
           <dl v-if="product.specs?.length" class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 text-sm">
             <div v-for="spec in product.specs" :key="spec.label">
               <dt class="text-primary-dark-400">{{ spec.label }}</dt>
@@ -118,10 +119,13 @@
       </div>
 
       <ProductBuyBox
-        :product="product"
+        :product="shown"
         :selected-variants="selectedVariants"
         :merchant="merchant"
         :max-quantity="apiListing?.maxQuantity"
+        :listing-id="apiListing?.listingId"
+        :variant-id="selectedVariant?.id"
+        :variant-missing="Boolean(apiListing?.variants?.length) && !selectedVariant"
       />
     </div>
   </div>
@@ -175,6 +179,13 @@ const activeImageIndex = ref(0);
 const activeImage = computed(() => gallery.value[activeImageIndex.value] ?? gallery.value[0]);
 
 const selectedVariants = reactive<Record<string, string>>({});
+const selectedVariant = computed(() =>
+  apiListing.value?.variants?.length ? findVariant(apiListing.value.variants, selectedVariants) : null,
+);
+/** The product with the picked variant's price and stock, when the listing has variants. */
+const shown = computed(() =>
+  product.value && selectedVariant.value ? variantProduct(product.value, selectedVariant.value) : product.value!,
+);
 
 watch(
   product,
