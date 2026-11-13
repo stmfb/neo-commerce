@@ -7,8 +7,30 @@ export default defineNuxtConfig({
     // Server-only: upstream NeoCash API. Overridden by NUXT_API_BASE in .env.
     // The browser only ever talks to our own /api/** routes (see server/api).
     apiBase: "",
+    public: {
+      // Firebase web config for phone sign-in on the website (the app webview gets its token
+      // from the app instead). Public by design; supplied per environment by the backend team
+      // as NUXT_PUBLIC_FIREBASE_API_KEY, _AUTH_DOMAIN, _PROJECT_ID and _APP_ID.
+      firebase: { apiKey: "", authDomain: "", projectId: "", appId: "" },
+    },
   },
   components: [{ path: "~/components", pathPrefix: false }],
+  hooks: {
+    // The face-capture code (React + AWS liveness, ~380 kB gzipped) is only needed by new
+    // shoppers, at that step. Don't let the sign-in page prefetch it on everyone's mobile data;
+    // the face step starts the download when it opens (see SignInFaceStep.vue).
+    "build:manifest"(manifest) {
+      const skip = new Set<string>();
+      const visit = (key: string) => {
+        const entry = manifest[key];
+        if (!entry || entry.isEntry || skip.has(key)) return;
+        skip.add(key);
+        for (const next of [...(entry.imports ?? []), ...(entry.dynamicImports ?? [])]) visit(next);
+      };
+      for (const key of Object.keys(manifest)) if (key.endsWith("lib/face_liveness.ts")) visit(key);
+      for (const key of skip) manifest[key]!.prefetch = false;
+    },
+  },
   app: {
     head: {
       title: "NeoCash Marketplace",

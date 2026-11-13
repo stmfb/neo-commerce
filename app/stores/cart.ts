@@ -43,7 +43,9 @@ export const useCartStore = defineStore("cart", {
         const { status, code, message } = apiError(error);
         if (status === 401) {
           this.cart = null;
-          useAuthStore().requestSession();
+          // A loading cart (the header's badge, on every page) mustn't send the shopper to sign in.
+          if (mutation) useAuthStore().requestSession();
+          else useAuthStore().sessionExpired();
         }
         // The cart changed elsewhere (another tab, a checkout): show the latest.
         if (code === "cart_version_conflict") await this.fetchCart();

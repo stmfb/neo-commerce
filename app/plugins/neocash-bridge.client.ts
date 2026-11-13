@@ -10,8 +10,13 @@ import type { BridgeSession } from "~/utils/bridge";
 export default defineNuxtPlugin(async () => {
   const auth = useAuthStore();
 
+  // A session from the app means this tab is the app's webview: sign-in stays with the app
+  // (see isInApp), rather than the website's sign-in page.
   (window as any).NeoCashMarketplace = {
-    setSession: (session: BridgeSession) => auth.setSession(session),
+    setSession: (session: BridgeSession) => {
+      markInApp();
+      return auth.setSession(session);
+    },
     clearSession: () => auth.clearSession(),
   };
 
@@ -19,6 +24,7 @@ export default defineNuxtPlugin(async () => {
   const hash = new URLSearchParams(window.location.hash.slice(1));
   const token = hash.get("token");
   if (token) {
+    markInApp();
     history.replaceState(history.state, "", window.location.pathname + window.location.search);
     await auth.setSession({
       token,

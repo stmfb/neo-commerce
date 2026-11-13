@@ -13,10 +13,10 @@
       v-if="!signedIn"
       class="mt-6"
       title="Sign in to see your cart"
-      description="Your cart is saved to your NeoCash account."
+      description="Your cart is saved to your NeoCash account. New here? You can create one with your phone number."
     >
       <template #actions>
-        <NcButton size="md" @click="requestSession">Sign in</NcButton>
+        <NcButton size="md" @click="requestSession">Sign in or create account</NcButton>
       </template>
     </EmptyState>
 

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import type { BridgeSession } from "~/utils/bridge";
+import { firebaseConfigured, onFirebaseToken, signOutOfFirebase } from "~/lib/firebase";
 
 /** Cookie values are plain strings; skip useCookie's JSON parsing. */
 const readCookie = (name: string) => useCookie<string | null>(name, { decode: (v) => decodeURIComponent(v ?? "") }).value;
@@ -55,10 +56,58 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    /** No session, or the API rejected it: show signed out and ask the app for one. */
+    /** Swaps in a refreshed token for the same shopper; signed-in data stays as it is. */
+    async refreshSession(token: string) {
+      try {
+        await $fetch("/api/session", { method: "POST", body: { token, firstName: this.firstName || undefined } });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    /**
+     * Website only: keeps the session cookie's ID token fresh from Firebase while the tab is
+     * open. On load, a cookie still in date needs nothing; later tokens are refreshes. A tab
+     * whose cookie ran out while it was closed signs back in from Firebase's tab session.
+     */
+    async syncWebSession() {
+      const config = useRuntimeConfig().public.firebase;
+      if (isInApp() || !firebaseConfigured(config)) return;
+      await onFirebaseToken(config, (token, initial) => {
+        if (initial && this.signedIn) return;
+        if (this.signedIn) this.refreshSession(token);
+        else this.setSession({ token, firstName: this.firstName || undefined });
+      });
+    },
+
+    /** Website sign-out: ends our session and Firebase's. In the app, the app signs out. */
+    async signOut() {
+      await this.clearSession();
+      const config = useRuntimeConfig().public.firebase;
+      if (firebaseConfigured(config)) await signOutOfFirebase(config).catch(() => {});
+    },
+
+    /**
+     * The shopper needs to sign in (a Sign in button, an action that needs an account, or
+     * the API rejected the session). The app's webview asks the app; the website goes to
+     * its sign-in page and comes back here afterwards.
+     */
     requestSession() {
       this.signedIn = false;
-      postToApp({ type: "session_required" });
+      if (!import.meta.client) return;
+      if (isInApp()) return postToApp({ type: "session_required" });
+      const route = useRouter().currentRoute.value;
+      if (route.path !== "/sign-in") navigateTo({ path: "/sign-in", query: { redirect: route.fullPath } });
+    },
+
+    /**
+     * A background load found the session gone. Shows signed out without taking the shopper
+     * off the page; in the app, the app is still asked for a fresh session.
+     */
+    sessionExpired() {
+      this.signedIn = false;
+      if (isInApp()) postToApp({ type: "session_required" });
     },
   },
 });
