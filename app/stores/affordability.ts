@@ -47,7 +47,7 @@ export const useAffordabilityStore = defineStore("affordabilityStore", {
         if (this.budgetKobo !== null) this.budgetKobo = this.normalise(this.budgetKobo);
         return true;
       } catch (error: any) {
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         this.loading = false;

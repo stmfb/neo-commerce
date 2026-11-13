@@ -63,7 +63,7 @@ export const useCategoryStore = defineStore("categoryStore", {
         this.total = 0;
         this.nextCursor = null;
         this.errorStatus = error?.statusCode ?? error?.status ?? null;
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         this.loading = false;
@@ -81,7 +81,7 @@ export const useCategoryStore = defineStore("categoryStore", {
         this.nextCursor = page.nextCursor;
         return true;
       } catch (error: any) {
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         this.loadingMore = false;

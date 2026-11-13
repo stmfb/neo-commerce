@@ -73,7 +73,7 @@ export const useSearchStore = defineStore("searchStore", {
         this.total = 0;
         this.nextCursor = null;
         this.empty = null;
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         if (requestId === this.requestId) {
@@ -97,7 +97,7 @@ export const useSearchStore = defineStore("searchStore", {
         this.nextCursor = page.nextCursor;
         return true;
       } catch (error: any) {
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         this.loadingMore = false;

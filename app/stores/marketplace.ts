@@ -33,7 +33,7 @@ export const useMarketplaceStore = defineStore("marketplaceStore", {
           this.home = data;
           return true;
         } catch (error: any) {
-          this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+          this.error = apiError(error).message;
           return false;
         } finally {
           this.loading = false;

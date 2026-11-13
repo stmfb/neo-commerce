@@ -25,7 +25,7 @@ export const useListingStore = defineStore("listingStore", {
         return true;
       } catch (error: any) {
         this.errorStatus = error?.statusCode ?? error?.status ?? null;
-        this.error = error?.data?.message || error?.statusMessage || "Something went wrong";
+        this.error = apiError(error).message;
         return false;
       } finally {
         this.loading = false;
