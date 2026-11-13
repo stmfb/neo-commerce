@@ -41,6 +41,12 @@ export default defineNuxtConfig({
         },
       ],
       link: [
+        // Icons (public/): the SVG for modern browsers, .ico (16 and 32 px) for the rest, the
+        // home-screen icon for iOS, and the manifest's 192/512 px icons for Android.
+        { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+        { rel: "manifest", href: "/site.webmanifest" },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
           rel: "preconnect",
