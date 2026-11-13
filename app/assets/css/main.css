@@ -104,24 +104,8 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
-/* Button loading state: sweep over the button while keeping its colours. */
-.btn-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-shimmer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
-  animation: shimmer-sweep 1.2s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .shimmer::after,
-  .btn-shimmer::after,
   .nc-route-shimmer {
     animation: none;
   }
