@@ -1,173 +1,164 @@
 <template>
-  <div v-if="order" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-    <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: 'My orders', to: '/orders' }, { label: order.id }]" />
+  <div v-if="!signedIn" class="mx-auto max-w-[1320px] px-4 py-16 sm:px-6">
+    <EmptyState title="Sign in to see this order" description="Your orders and repayments are linked to your NeoCash account.">
+      <template #actions>
+        <NcButton @click="requestSession">Sign in</NcButton>
+      </template>
+    </EmptyState>
+  </div>
+
+  <div v-else-if="order?.orderId === id" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: 'My orders', to: '/orders' }, { label: order.orderNumber }]" />
 
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-3xl font-bold font-display text-primary-dark">Order {{ order.id }}</h1>
+        <h1 class="text-3xl font-bold font-display text-primary-dark">Order {{ order.orderNumber }}</h1>
         <p class="mt-1 text-sm text-primary-dark-400">
-          Placed {{ order.placedDate }} · {{ order.subOrders.length }} seller{{ order.subOrders.length > 1 ? "s" : "" }} · one plan
+          Placed {{ formatOrderDate(order.createdAt) }} · {{ sellerCount }} seller{{ sellerCount === 1 ? "" : "s" }} · one plan
         </p>
       </div>
-      <NcButton variant="secondary" size="sm">Get help with this order</NcButton>
+      <NcButton v-if="help.email" :to="`mailto:${help.email}`" variant="secondary" size="sm">
+        Get help with this order
+      </NcButton>
     </div>
 
-    <StatusBanner v-if="partialSummary" tone="info" :title="partialSummary.title" class="mb-5">
+    <OrderMandateBanner v-if="order.mandate" :mandate="order.mandate" class="mb-5" />
+
+    <StatusBanner v-if="order.fulfilment" tone="info" :title="order.fulfilment.label" class="mb-5">
       <template #icon>
         <img src="/package.png" alt="" class="h-6 w-6" />
       </template>
-      {{ partialSummary.description }}
+    </StatusBanner>
+
+    <StatusBanner
+      v-for="adjustment in order.adjustments"
+      :key="adjustment.id"
+      :title="`Your ${adjustment.merchantName} order was cancelled`"
+      class="mb-5"
+    >
+      <template #icon>
+        <IconReturn />
+      </template>
+      <!-- The generic reason only repeats the title. -->
+      <template v-if="adjustment.reason.code !== 'cancelled'">{{ adjustment.reason.message }} </template>
+      <template v-if="adjustment.kind === 'refunded'">
+        {{ formatKobo(adjustment.refundKobo ?? 0) }} has been refunded to your NeoCash account.
+      </template>
+      <template v-else>Your plan is now {{ formatKobo(adjustment.newTotalKobo ?? 0) }}.</template>
     </StatusBanner>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
       <div class="space-y-4">
-        <div v-for="sub in order.subOrders" :key="sub.code" class="rounded-xl border border-line bg-white p-5">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" :class="tileColor(sub.merchantSlug)">
-                {{ initials(sub.merchantSlug) }}
-              </span>
-              <div>
-                <p class="text-sm font-bold text-primary-dark-900">{{ sub.merchantName }}</p>
-                <p class="text-xs text-primary-dark-400">{{ sub.code }} · {{ sub.itemsLabel }}</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <Pill :tone="subTone(sub.status)">{{ subLabel(sub.status) }}</Pill>
-              <p class="text-sm font-bold text-primary-dark-900">{{ formatNaira(sub.amount) }}</p>
-            </div>
-          </div>
-
-          <div class="mt-4 flex items-center gap-4 border-t border-line pt-4">
-            <div class="flex-1">
-              <OrderTimeline :events="sub.events" :status="sub.status" />
-            </div>
-            <NcButton v-if="sub.status === 'delivered'" variant="secondary" size="sm">Start a return</NcButton>
-            <NcButton v-else-if="sub.status === 'on-the-way'" variant="secondary" size="sm">Track delivery</NcButton>
-          </div>
-
-          <p v-if="sub.status === 'cancelled'" class="mt-3 text-xs text-primary-dark-400">{{ sub.deliveryNote }}</p>
-          <p v-else-if="sub.trackingCode" class="mt-3 text-xs text-primary-dark-400">Tracking {{ sub.trackingCode }}</p>
-        </div>
+        <SubOrderCard v-for="sub in order.subOrders" :key="sub.subOrderId" :order-id="order.orderId" :sub-order="sub" />
       </div>
 
       <aside class="h-fit space-y-4 lg:sticky lg:top-28">
-        <div v-if="order.status === 'repaid'" class="rounded-xl border border-line bg-white p-5">
-          <p class="text-sm font-bold text-primary-dark-900">Repaid in full</p>
-          <p class="mt-1 text-xs text-primary-dark-400">Closed {{ order.closedDate }}</p>
-          <p class="mt-3 text-2xl font-bold text-primary-dark-900">{{ formatNaira(order.totalRepayable) }}</p>
-          <p class="mt-1 text-xs text-primary-dark-400">Paid across {{ order.repaymentSchedule.length }} instalments</p>
-        </div>
-
-        <div v-else class="rounded-xl border border-line bg-white p-5">
+        <div class="rounded-xl border border-line bg-white p-5">
           <p class="text-sm font-bold text-primary-dark-900">Your repayment schedule</p>
           <p class="mt-3 rounded-lg bg-primary-50 px-3 py-2.5 text-xs text-primary-dark-500">
-            {{ scheduleStartNote }}
+            {{ order.repayment.activationNote }}
           </p>
           <ul class="mt-4 space-y-3">
-            <li v-for="entry in order.repaymentSchedule" :key="entry.label" class="flex items-center justify-between text-sm">
+            <li v-if="order.repayment.downPaidKobo" class="flex items-center justify-between text-sm">
               <div class="flex items-center gap-3">
-                <span
-                  class="h-6 w-6 shrink-0 rounded-full border-2"
-                  :class="
-                    entry.status === 'paid'
-                      ? 'border-emerald-100 bg-emerald-100'
-                      : entry.status === 'due'
-                        ? 'border-[3px] border-primary-500 bg-white'
-                        : 'border-primary-dark-100 bg-white'
-                  "
-                />
+                <span class="h-6 w-6 shrink-0 rounded-full border-2 border-emerald-100 bg-emerald-100" />
                 <div>
-                  <p class="font-medium text-primary-dark-800">{{ entry.label }}</p>
-                  <p class="text-xs text-primary-dark-400">{{ entry.date }}</p>
+                  <p class="font-medium text-primary-dark-800">Upfront payment</p>
+                  <p class="text-xs text-primary-dark-400">Paid</p>
                 </div>
               </div>
-              <p class="font-semibold text-primary-dark-800">{{ formatNaira(entry.amount) }}</p>
+              <p class="font-semibold text-primary-dark-800">{{ formatKobo(order.repayment.downPaidKobo) }}</p>
+            </li>
+            <li v-for="instalment in order.repayment.instalments" :key="instalment.seq" class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-3">
+                <span class="h-6 w-6 shrink-0 rounded-full border-2 border-primary-dark-100 bg-white" />
+                <div>
+                  <p class="font-medium text-primary-dark-800">Instalment {{ instalment.seq }}</p>
+                  <p class="text-xs text-primary-dark-400">
+                    <time v-if="instalment.dueDate" :datetime="instalment.dueDate">{{ instalment.dueLabel }}</time>
+                    <template v-else>{{ instalment.dueLabel }}</template>
+                  </p>
+                </div>
+              </div>
+              <p class="font-semibold text-primary-dark-800">{{ formatKobo(instalment.amountKobo) }}</p>
             </li>
           </ul>
           <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm font-bold text-primary-dark-900">
-            <span>One plan · {{ order.subOrders.length }} sellers</span>
-            <span>{{ formatNaira(order.totalRepayable) }}</span>
+            <span>Total repayable</span>
+            <span>{{ formatKobo(order.repayment.totalRepayableKobo) }}</span>
+          </div>
+          <div v-if="order.repayment.activated" class="mt-1 flex items-center justify-between text-sm text-primary-dark-500">
+            <span>Outstanding</span>
+            <span>{{ formatKobo(order.repayment.outstandingKobo) }}</span>
           </div>
         </div>
 
-        <StatusBanner v-if="order.planAdjustment" tone="warning" title="Your plan was adjusted">
-          <template #icon>
-            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.4" />
-              <path d="M10 9v4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-              <circle cx="10" cy="6.75" r="0.9" fill="currentColor" />
-            </svg>
-          </template>
-          {{ order.planAdjustment.merchantName }} cancelled their part ({{ formatNaira(order.planAdjustment.removedAmount) }}). That
-          amount came off your principal and your monthly payment dropped from {{ formatNaira(order.planAdjustment.previousMonthlyAmount) }}
-          to {{ formatNaira(order.monthlyAmount) }}.
-        </StatusBanner>
-
-        <div class="rounded-xl border border-line bg-white p-5">
+        <div v-if="order.address.line1" class="rounded-xl border border-line bg-white p-5">
           <p class="text-sm font-bold text-primary-dark-900">Delivery address</p>
-          <p class="mt-2 text-sm text-primary-dark-500">{{ order.deliveryAddress }}</p>
+          <p class="mt-2 text-sm text-primary-dark-500">
+            {{ order.address.line1 }}<template v-if="order.address.line2">, {{ order.address.line2 }}</template><br />
+            {{ order.address.city }}, {{ order.address.state }}
+          </p>
+        </div>
+
+        <div v-if="help.email || help.phone" class="rounded-xl border border-line bg-white p-5">
+          <p class="text-sm font-bold text-primary-dark-900">Get help</p>
+          <p class="mt-1 text-xs text-primary-dark-400">Contact the seller first. If they can't sort it out, NeoCash can help.</p>
+          <a v-if="help.email" :href="`mailto:${help.email}`" class="mt-3 block text-sm font-medium text-primary-600">{{ help.email }}</a>
+          <a v-if="help.phone" :href="`tel:${help.phone}`" class="mt-1 block text-sm font-medium text-primary-600">{{ help.phone }}</a>
         </div>
       </aside>
     </div>
+  </div>
+
+  <div v-else-if="showShimmer" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <ShimmerRegion label="Loading order…">
+      <div class="space-y-5">
+        <Shimmer class="h-4 w-56" />
+        <Shimmer class="h-8 w-64 max-w-full" />
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+          <div class="space-y-4">
+            <Shimmer v-for="n in 2" :key="n" rounded="xl" class="h-56 w-full" />
+          </div>
+          <Shimmer rounded="xl" class="h-72 w-full" />
+        </div>
+      </div>
+    </ShimmerRegion>
+  </div>
+
+  <div v-else class="mx-auto max-w-[1320px] px-4 py-16 sm:px-6">
+    <EmptyState
+      :title="notFound ? 'We could not find this order' : 'We could not load this order'"
+      :description="notFound ? 'Check the link, or find it in your orders.' : 'Please refresh to try again.'"
+    >
+      <template #actions>
+        <NcButton to="/orders" variant="secondary">My orders</NcButton>
+      </template>
+    </EmptyState>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { getMerchant } from "~/data/merchants";
-import type { SubOrderStatus } from "~/data/orders";
+import type { ApiSupportContact } from "~/models/orders_model";
 
 const route = useRoute();
-const { getOrder } = useOrders();
+const id = computed(() => route.params.id as string);
 
-const order = computed(() => getOrder(route.params.id as string));
+const { signedIn, sessionVersion, requestSession } = useAuth();
+const { order, loading, error, errorStatus, fetchOrder } = useOrders();
 
-function initials(slug: string) {
-  return getMerchant(slug)?.initials ?? "";
-}
-function tileColor(slug: string) {
-  return getMerchant(slug)?.tileColor ?? "bg-primary-dark-700";
-}
-function subLabel(status: SubOrderStatus) {
-  return { delivered: "Delivered", "on-the-way": "On the way", cancelled: "Cancelled by seller", processing: "Processing" }[status];
-}
-function subTone(status: SubOrderStatus) {
-  return { delivered: "success", "on-the-way": "dark", cancelled: "error", processing: "warning" }[status] as
-    | "success"
-    | "dark"
-    | "error"
-    | "warning";
-}
-
-const scheduleStartNote = computed(() => {
-  if (!order.value) return "";
-  const deliveredEvent = order.value.subOrders
-    .flatMap((sub) => sub.events)
-    .find((event) => event.label === "Delivered" && event.done);
-
-  if (!deliveredEvent) return "Your schedule starts when the first item is delivered on this order.";
-
-  return `Your schedule started when your first item was delivered on ${deliveredEvent.date} — not when you placed the order.`;
+// Signed-in data: the session cookie only reaches our API from the browser, so skip SSR.
+await useAsyncData(() => `order-${id.value}`, () => fetchOrder(id.value), {
+  lazy: true,
+  server: false,
+  watch: [id, sessionVersion],
 });
 
-const partialSummary = computed(() => {
-  if (!order.value) return null;
-  const total = order.value.subOrders.length;
-  const deliveredCount = order.value.subOrders.filter((sub) => sub.status === "delivered").length;
-  if (deliveredCount === total) return null;
+// Shimmer until the order is here or the request has failed.
+const showShimmer = computed(() => loading.value || !error.value);
+const notFound = computed(() => errorStatus.value === 404);
 
-  const notes = order.value.subOrders
-    .filter((sub) => sub.status !== "delivered")
-    .map((sub) => {
-      if (sub.status === "on-the-way") return `${sub.merchantName} is on the way.`;
-      if (sub.status === "cancelled") return `${sub.merchantName} cancelled theirs, and your plan has been adjusted for it.`;
-      return `${sub.merchantName} is being processed.`;
-    });
-
-  return {
-    title: `${deliveredCount} of ${total} orders delivered`,
-    description: notes.join(" "),
-  };
-});
+const sellerCount = computed(() => order.value?.subOrders.length ?? 0);
+const help = computed<ApiSupportContact>(() => order.value?.neocashEscalation ?? {});
 </script>

@@ -3,8 +3,28 @@
     <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: 'My orders' }]" />
     <h1 class="mb-5 text-3xl font-bold font-display text-primary-dark">My orders</h1>
 
+    <EmptyState v-if="!signedIn" title="Sign in to see your orders" description="Your orders and repayments are linked to your NeoCash account.">
+      <template #actions>
+        <NcButton @click="requestSession">Sign in</NcButton>
+      </template>
+    </EmptyState>
+
+    <ShimmerRegion v-else-if="showShimmer" label="Loading orders…">
+      <div class="space-y-4">
+        <div v-for="n in 3" :key="n" class="space-y-3 rounded-xl border border-line bg-white p-5">
+          <Shimmer class="h-4 w-48" />
+          <Shimmer class="h-3 w-64 max-w-full" />
+          <div class="flex gap-2 pt-1">
+            <Shimmer v-for="m in 3" :key="m" rounded="lg" class="h-9 w-9" />
+          </div>
+        </div>
+      </div>
+    </ShimmerRegion>
+
+    <EmptyState v-else-if="!orders" title="We could not load your orders" description="Please refresh to try again." />
+
     <EmptyState
-      v-if="orders.length === 0"
+      v-else-if="orders.length === 0"
       title="Your orders will appear here"
       description="Every purchase, with tracking for each seller and one repayment schedule per order."
     >
@@ -19,19 +39,14 @@
       </template>
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
-      <div class="space-y-4">
-        <OrderCard v-for="order in orders" :key="order.id" :order="order" />
+    <div v-else class="space-y-4">
+      <OrderCard v-for="order in orders" :key="order.orderId" :order="order" />
+      <div v-if="hasMore" class="flex flex-col items-center gap-2">
+        <NcButton variant="secondary" size="sm" :loading="loadingMore" @click="loadMore()">
+          {{ loadingMore ? "Loading more…" : "Load more" }}
+        </NcButton>
+        <p v-if="error" class="text-xs text-rose-600">{{ error }}</p>
       </div>
-
-      <aside v-if="activeOrder" class="h-fit rounded-xl border border-line bg-white p-5">
-        <p class="text-sm font-bold text-primary-dark-900">Next payment</p>
-        <p class="mt-2 text-2xl font-bold text-primary-dark-900">{{ formatNaira(activeOrder.monthlyAmount) }}</p>
-        <p class="mt-1 text-xs text-primary-dark-400">Due next month · Order {{ activeOrder.id }}</p>
-        <p class="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-700">
-          You have {{ order2Count }} active order{{ order2Count > 1 ? "s" : "" }} on a Pay Small Small plan.
-        </p>
-      </aside>
     </div>
   </div>
 </template>
@@ -39,8 +54,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const { orders } = useOrders();
+const { signedIn, sessionVersion, requestSession } = useAuth();
+const { orders, loading, loadingMore, error, hasMore, fetchOrders, loadMore } = useOrders();
 
-const activeOrder = computed(() => orders.value.find((order) => order.status === "partly-delivered"));
-const order2Count = computed(() => orders.value.filter((order) => order.status === "partly-delivered").length);
+// Signed-in data: the session cookie only reaches our API from the browser, so skip SSR.
+await useAsyncData("orders", fetchOrders, { lazy: true, server: false, watch: [sessionVersion] });
+
+// Shimmer until the first page is here or the request has failed.
+const showShimmer = computed(() => !orders.value && (loading.value || !error.value));
 </script>
