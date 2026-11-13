@@ -53,7 +53,7 @@ export function storeToMerchant(store: ApiOfficialStore): Merchant {
     initials: initials(store.name),
     logo: store.logo,
     tileColor: "bg-primary-dark-950",
-    verified: store.verified,
+    verified: store.verified ?? false,
     official: true,
     categorySlug: "",
     deliveryEta: "Delivery time varies by seller",
@@ -84,6 +84,26 @@ export function variantsToGroups(variants: ApiListingVariant[]): ProductVariantG
   }));
 }
 
+/** The variant carrying every picked option (keyed by group name), or null if that combination isn't sold. */
+export function findVariant(variants: ApiListingVariant[], picked: Record<string, string>): ApiListingVariant | null {
+  return (
+    variants.find((variant) =>
+      Object.entries(variant.attributes).every(([key, value]) => picked[capitalise(key)] === value),
+    ) ?? null
+  );
+}
+
+/** The product as priced and stocked for one variant. */
+export function variantProduct(product: Product, variant: ApiListingVariant): Product {
+  return {
+    ...product,
+    price: koboToNaira(variant.priceKobo),
+    fromMonthly: variant.instalmentFromKobo ? koboToNaira(variant.instalmentFromKobo) : product.fromMonthly,
+    stock: STOCK_MAP[variant.stock.level] ?? "in",
+    stockCount: variant.stock.available,
+  };
+}
+
 export function listingDetailToProduct(listing: ApiListingDetail): Product {
   return {
     ...listingToProduct(listing),
@@ -93,12 +113,16 @@ export function listingDetailToProduct(listing: ApiListingDetail): Product {
 }
 
 export function listingMerchantToMerchant(merchant: ApiListingMerchant): Merchant {
-  const { min, max } = merchant.fulfilmentEtaDays;
+  const eta = merchant.fulfilmentEtaDays;
   return {
     ...storeToMerchant(merchant),
     official: false,
-    deliveryEta: min === max ? `Delivery in ${min} days` : `Delivery in ${min}–${max} days`,
-    returnsNote: merchant.returnsWindow > 0 ? `${merchant.returnsWindow}-day returns` : "No returns on this item",
+    deliveryEta: !eta
+      ? "Delivery time varies by seller"
+      : eta.min === eta.max
+        ? `Delivery in ${eta.min} days`
+        : `Delivery in ${eta.min}–${eta.max} days`,
+    returnsNote: merchant.returnsWindow ? `${merchant.returnsWindow}-day returns` : "No returns on this item",
   };
 }
 

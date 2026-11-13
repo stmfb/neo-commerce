@@ -12,7 +12,8 @@ export interface ApiListing {
   image?: string;
   merchantId: string;
   merchantName: string;
-  merchantVerified: boolean;
+  /** Omitted when the merchant isn't verified. */
+  merchantVerified?: boolean;
   priceKobo: number;
   instalmentFromKobo?: number;
   bnplEligible: boolean;
@@ -36,7 +37,7 @@ export interface ApiOfficialStore {
   id: string;
   name: string;
   logo?: string;
-  verified: boolean;
+  verified?: boolean;
 }
 
 /** The home payload only says whether a limit is known; details come from /me/affordability. */
@@ -126,15 +127,16 @@ export interface ApiListingVariant {
   stock: ApiStock;
 }
 
+/** Optional fields are omitted when the seller hasn't set them. */
 export interface ApiListingMerchant {
   id: string;
   name: string;
   logo?: string;
-  verified: boolean;
+  verified?: boolean;
   /** Days the buyer has to return an item. */
-  returnsWindow: number;
-  fulfilmentEtaDays: { min: number; max: number };
-  supportContact: { email: string; phone: string; hours: string };
+  returnsWindow?: number;
+  fulfilmentEtaDays?: { min: number; max: number };
+  supportContact: { email?: string; phone?: string; hours?: string };
 }
 
 /** Raw `data` payload of GET /listings/:id on the upstream API. */
@@ -146,10 +148,17 @@ export interface ApiListingDetail extends ApiListing {
   merchant: ApiListingMerchant;
   maxQuantity?: number;
   notifyMeSupported?: boolean;
+  /** Why the listing can't be bought on Pay Small Small, when it can't. */
+  ineligibleCopy?: string;
 }
 
-/** Merchant availability. Only "live" is confirmed so far; anything else is treated as not taking orders. */
-export type ApiMerchantStatus = "live" | (string & {});
+/** Raw `data` payload of GET /merchants: official stores grouped by category. */
+export interface ApiDirectory {
+  groups: { category: ApiCategory; merchants: ApiOfficialStore[] }[];
+}
+
+/** Merchant availability; anything but "live" is treated as not taking orders. */
+export type ApiMerchantStatus = "live" | "temporarily_unavailable";
 
 /** Raw `data` payload of GET /merchants/:id on the upstream API. */
 export interface ApiMerchantDetail extends ApiListingMerchant {
@@ -157,6 +166,8 @@ export interface ApiMerchantDetail extends ApiListingMerchant {
   categories?: ApiCategory[];
   returnsPolicy?: string;
   status: ApiMerchantStatus;
+  /** Shopper-facing note when the store isn't live. */
+  statusCopy?: string;
   listings: ApiListing[];
   /** `nextCursor` is only present when `limit` was sent and more pages remain. */
   page: { total: number; cursor?: string; nextCursor?: string };
@@ -187,6 +198,8 @@ export interface SearchQuery {
 /** Sent instead of results when nothing matches. */
 export interface ApiSearchEmpty {
   message: string;
+  /** The filter to loosen first, when filters emptied the results. */
+  loosenFilter?: string;
   /** Only present when the query itself matched nothing (not when filters did). */
   suggestedCategories?: ApiCategory[];
 }
