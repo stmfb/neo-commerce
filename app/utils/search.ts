@@ -54,3 +54,26 @@ export function searchQueryKey(query: SearchQuery) {
 }
 
 export const nairaToKobo = (naira: number) => Math.round(naira * 100);
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Splits `text` into parts, flagging the ones that match a word of `term`, so a template can
+ * bold them without v-html. `highlightMatches("Tecno Spark", "spa")` →
+ * `[{ text: "Tecno ", match: false }, { text: "Spa", match: true }, { text: "rk", match: false }]`
+ */
+export function highlightMatches(text: string, term: string) {
+  const words = term.split(" ").filter(Boolean).map(escapeRegExp);
+  if (!words.length) return [{ text, match: false }];
+  // With a capture group, split() puts the matches at the odd indexes.
+  return text
+    .split(new RegExp(`(${words.join("|")})`, "gi"))
+    .map((part, i) => ({ text: part, match: i % 2 === 1 }))
+    .filter((part) => part.text);
+}
+
+/** True when every word of `term` starts a word of `name`: "gen pow" matches "Generators & Power". */
+export function matchesWordPrefixes(name: string, term: string) {
+  const parts = name.toLowerCase().split(/[^\p{L}\p{N}]+/u);
+  return term.split(" ").every((word) => parts.some((part) => part.startsWith(word)));
+}

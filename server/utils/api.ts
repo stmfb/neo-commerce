@@ -17,11 +17,16 @@ export const useApiFetch = async <T>(
     headers?: Record<string, string>;
     /** Fail with 401 before calling upstream when the shopper has no session. */
     requireToken?: boolean;
+    /**
+     * Call upstream without the shopper's token and device id. Use for responses that are
+     * cached and shared between shoppers, so one shopper's data can't reach another.
+     */
+    anonymous?: boolean;
   } = {},
 ): Promise<T> => {
   // Private (server-only) config — set via NUXT_API_BASE, never shipped to the browser.
   const config = useRuntimeConfig(event);
-  const { token, deviceId } = shopperAuth(event);
+  const { token, deviceId } = options.anonymous ? { token: undefined, deviceId: undefined } : shopperAuth(event);
 
   if (options.requireToken && !token) {
     throw createError({

@@ -218,3 +218,17 @@ export interface ApiSearchResults {
 export interface SearchPage extends ApiSearchResults {
   nextCursor: string | null;
 }
+
+/** Raw `data` payload of GET /search/suggest on the upstream API. */
+export interface ApiSearchSuggest {
+  /** Completed search texts, e.g. "iphone 15" for "iph". */
+  queries: string[];
+  categories: ApiCategory[];
+  merchants: ApiOfficialStore[];
+}
+
+/** What our /api/search/suggest route returns to the app. */
+export interface SearchSuggestions extends ApiSearchSuggest {
+  /** The normalised query these suggestions answer (see `normaliseSearchTerm`). */
+  q: string;
+}
