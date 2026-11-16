@@ -9,7 +9,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only: upstream NeoCash API. The browser only ever talks to our own /api/** routes
     // (see server/api).
-    apiBase: "https://8676-35-246-179-39.ngrok-free.app/v1",
+    // apiBase: "https://8676-35-246-179-39.ngrok-free.app/v1",
+    apiBase: "https://nc-staging-351723537194.europe-west3.run.app/v1",
     public: {
       // Firebase web config for phone sign-in on the website (the app webview gets its token
       // from the app instead). Public by design: Firebase web keys ship to every browser.
