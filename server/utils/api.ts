@@ -24,7 +24,7 @@ export const useApiFetch = async <T>(
     anonymous?: boolean;
   } = {},
 ): Promise<T> => {
-  // Private (server-only) config — set via NUXT_API_BASE, never shipped to the browser.
+  // Private (server-only) config (nuxt.config.ts, or NUXT_API_BASE), never shipped to the browser.
   const config = useRuntimeConfig(event);
   const { token, deviceId } = options.anonymous ? { token: undefined, deviceId: undefined } : shopperAuth(event);
 

@@ -3,15 +3,22 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ["@nuxtjs/tailwindcss", "@pinia/nuxt"],
   css: ["~/assets/css/main.css"],
+  // Nothing here is secret. Any value can still be replaced when the server starts (no rebuild)
+  // with an environment variable: NUXT_API_BASE, NUXT_PUBLIC_FIREBASE_API_KEY, _AUTH_DOMAIN,
+  // _PROJECT_ID and _APP_ID.
   runtimeConfig: {
-    // Server-only: upstream NeoCash API. Overridden by NUXT_API_BASE in .env.
-    // The browser only ever talks to our own /api/** routes (see server/api).
-    apiBase: "",
+    // Server-only: upstream NeoCash API. The browser only ever talks to our own /api/** routes
+    // (see server/api).
+    apiBase: "https://8676-35-246-179-39.ngrok-free.app/v1",
     public: {
       // Firebase web config for phone sign-in on the website (the app webview gets its token
-      // from the app instead). Public by design; supplied per environment by the backend team
-      // as NUXT_PUBLIC_FIREBASE_API_KEY, _AUTH_DOMAIN, _PROJECT_ID and _APP_ID.
-      firebase: { apiKey: "", authDomain: "", projectId: "", appId: "" },
+      // from the app instead). Public by design: Firebase web keys ship to every browser.
+      firebase: {
+        apiKey: "AIzaSyBa3KvM7J5DJXlEZcRik79YJCyPm66BaV8",
+        authDomain: "pocketbanc.firebaseapp.com",
+        projectId: "pocketbanc",
+        appId: "1:351723537194:web:15a9dcc55ed9c3bd2bd453",
+      },
     },
   },
   components: [{ path: "~/components", pathPrefix: false }],
