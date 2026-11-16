@@ -1,39 +1,73 @@
 <template>
-  <div v-if="merchant" class="mx-auto max-w-[1320px] space-y-6 px-4 py-6 sm:px-6">
+  <div v-if="showShimmer" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <ShimmerMerchantPage />
+  </div>
+
+  <div v-else-if="merchant" class="mx-auto max-w-[1320px] space-y-6 px-4 py-6 sm:px-6">
     <Breadcrumb
       :items="[{ label: 'Home', to: '/' }, { label: 'Official Stores', to: '/official-stores' }, { label: merchant.name }]" />
 
     <div class="overflow-hidden rounded-2xl border border-line bg-white">
-      <div class="h-24 bg-primary-dark sm:h-28" />
+      <ShimmerImg
+        :src="banner"
+        :alt="`${merchant.name} banner`"
+        loading="eager"
+        class="h-24 w-full sm:h-28"
+        img-class="h-full w-full object-cover"
+      >
+        <template #fallback>
+          <div class="h-full w-full bg-primary-dark" />
+        </template>
+      </ShimmerImg>
       <div class="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
-          <div class="-mt-10 flex items-end gap-4">
-            <span
-              class="font-display flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white text-xl font-bold text-white"
-              :class="merchant.tileColor">
-              {{ merchant.initials }}
-            </span>
-            <div class="font-display font-bold flex items-center gap-2 pb-1">
-              <h1 class="text-2xl font-bold text-primary-dark">{{ merchant.name }}</h1>
+          <div class="-mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
+            <ShimmerImg
+              :src="merchant.logo"
+              :alt="`${merchant.name} logo`"
+              loading="eager"
+              class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-white"
+              img-class="h-full w-full object-cover"
+            >
+              <template #fallback>
+                <span
+                  class="font-display flex h-full w-full items-center justify-center text-xl font-bold text-white"
+                  :class="merchant.tileColor">
+                  {{ merchant.initials }}
+                </span>
+              </template>
+            </ShimmerImg>
+            <div class="font-display flex min-w-0 flex-wrap items-center gap-2 font-bold sm:pb-1">
+              <h1 class="text-xl font-bold text-primary-dark sm:text-2xl">{{ merchant.name }}</h1>
               <VerifiedBadge v-if="merchant.verified" size="md" class="text-primary-500" />
               <Pill v-if="merchant.official" tone="success">Official store</Pill>
             </div>
           </div>
           <p class="mt-2 max-w-xl text-sm text-primary-dark-400 sm:ml-24">
-            {{ merchant.tagline }} {{ merchant.deliveryEta }}. {{ merchant.returnsNote }}.
+            <template v-if="merchant.tagline">{{ merchant.tagline }} </template>
+            {{ merchant.deliveryEta }}. {{ returnsPolicy ?? `${merchant.returnsNote}.` }}
           </p>
+          <div v-if="categories.length" class="mt-3 flex flex-wrap gap-2 sm:ml-24">
+            <NuxtLink
+              v-for="category in categories"
+              :key="category.slug"
+              :to="`/category/${category.slug}`"
+              class="rounded-full border border-line px-3 py-1 text-xs font-semibold text-primary-dark-700 hover:border-primary-300 hover:text-primary-700">
+              {{ category.name }}
+            </NuxtLink>
+          </div>
         </div>
-        <div class="flex shrink-0 gap-6">
+        <div class="grid shrink-0 grid-cols-3 gap-3 border-t border-line pt-4 sm:flex sm:gap-6 sm:border-0 sm:pt-0">
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ listings.length }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ totalListings }}</p>
             <p class="text-xs text-primary-dark-400">listings</p>
           </div>
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ deliveryWindow }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ deliveryWindow }}</p>
             <p class="text-xs text-primary-dark-400">typical delivery</p>
           </div>
           <div class="text-left">
-            <p class="text-2xl font-bold text-primary-dark-900">{{ returnsWindow }}</p>
+            <p class="whitespace-nowrap text-lg font-bold text-primary-dark-900 sm:text-2xl">{{ returnsWindow }}</p>
             <p class="text-xs text-primary-dark-400">returns window</p>
           </div>
         </div>
@@ -45,7 +79,21 @@
       already placed with them are unaffected.
     </StatusBanner>
 
-    <ProductGrid v-if="listings.length" :products="listings" demote-out-of-stock />
+    <template v-if="listings.length">
+      <ProductGrid :products="listings" demote-out-of-stock />
+      <ShimmerProductGrid v-if="loadingMore" :count="4" />
+      <div v-if="hasMore" class="flex justify-center">
+        <NcButton variant="secondary" size="sm" :loading="loadingMore" @click="merchantStore.loadMore()">
+          {{ loadingMore ? "Loading more…" : "Load more" }}
+        </NcButton>
+      </div>
+    </template>
+  </div>
+
+  <div v-else class="mx-auto max-w-[1320px] px-4 py-16 sm:px-6">
+    <EmptyState
+      :title="notFound ? 'This store does not exist' : 'We could not load this store'"
+      :description="notFound ? 'It may have closed or moved.' : 'Please refresh to try again.'" />
   </div>
 </template>
 
@@ -55,15 +103,55 @@ import { getMerchant } from "~/data/merchants";
 import { getProductsByMerchant } from "~/data/products";
 
 const route = useRoute();
-const merchant = computed(() => getMerchant(route.params.slug as string));
-const listings = computed(() => getProductsByMerchant(route.params.slug as string));
+const slug = computed(() => route.params.slug as string);
+
+const merchantStore = useMerchantStore();
+const { loading: pending, loadingMore, error, errorStatus, hasMore } = storeToRefs(merchantStore);
+const notFound = computed(() => errorStatus.value === 404);
+
+// Local demo merchants still resolve without an API call.
+const localMerchant = computed(() => getMerchant(slug.value));
+
+await useAsyncData(
+  () => `merchant-${slug.value}`,
+  () => (localMerchant.value ? Promise.resolve(true) : merchantStore.fetchMerchant(slug.value)),
+  // lazy: client navigations switch page immediately and show the shimmer while loading.
+  { watch: [slug], lazy: true },
+);
+
+const apiMerchant = computed(() =>
+  merchantStore.merchant?.id === slug.value ? merchantStore.merchant : null,
+);
+
+const merchant = computed(() =>
+  localMerchant.value ?? (apiMerchant.value ? merchantDetailToMerchant(apiMerchant.value) : undefined),
+);
+
+// Shimmer until this store's data is here or the request has failed — covers the tick
+// between a lazy navigation rendering and the fetch starting.
+const showShimmer = computed(() => !merchant.value && (pending.value || !error.value));
+
+const listings = computed(() =>
+  apiMerchant.value
+    ? merchantStore.listings.map((listing) => listingToProduct(listing))
+    : getProductsByMerchant(slug.value),
+);
+const totalListings = computed(() => (apiMerchant.value ? merchantStore.total : listings.value.length));
+
+const banner = computed(() => apiMerchant.value?.banner);
+const categories = computed(() => apiMerchant.value?.categories ?? []);
+const returnsPolicy = computed(() => apiMerchant.value?.returnsPolicy || undefined);
 
 const deliveryWindow = computed(() => {
+  const eta = apiMerchant.value?.fulfilmentEtaDays;
+  if (eta) return eta.min === eta.max ? `${eta.min} days` : `${eta.min}–${eta.max} days`;
   const range = merchant.value?.deliveryEta.match(/(\d+\s*[–-]\s*\d+|\d+)\s*days?/i)?.[1];
   return range ? `${range.replace(/\s+/g, "")} days` : "Varies";
 });
 
 const returnsWindow = computed(() => {
+  const apiDays = apiMerchant.value?.returnsWindow;
+  if (apiDays !== undefined) return apiDays > 0 ? `${apiDays} days` : "No returns";
   const days = merchant.value?.returnsNote.match(/(\d+)-day/i)?.[1];
   return days ? `${days} days` : "See policy";
 });

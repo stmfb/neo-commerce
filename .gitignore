@@ -22,3 +22,6 @@ logs
 .env
 .env.*
 !.env.example
+
+marketplace-web.md
+neocash-shop-favicon.zip

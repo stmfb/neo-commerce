@@ -1,0 +1,32 @@
+# Dependencies (installed fresh during docker build)
+node_modules
+
+# Nuxt build artifacts copied from host (the builder stage creates its own)
+.nuxt
+.output
+.nitro
+.cache
+.data
+dist
+
+.env
+.env.*
+!.env.example
+
+# Local-only files
+marketplace-web.md
+neocash-shop-favicon.zip
+
+# Version control
+.git
+.gitignore
+
+# Editor / OS noise
+.claude
+.idea
+.fleet
+.DS_Store
+*.log
+
+# Test artefacts
+coverage

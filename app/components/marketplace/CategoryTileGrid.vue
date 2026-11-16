@@ -6,7 +6,15 @@
       :to="`/category/${category.slug}`"
       class="group overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-card"
     >
-      <div class="h-16 transition-transform sm:h-20" :class="category.tileColor" />
+      <div class="flex h-16 items-center justify-center sm:h-20" :class="category.tileColor">
+        <ShimmerImg
+          v-if="category.image"
+          :src="category.image"
+          :alt="category.name"
+          class="h-full w-full"
+          img-class="h-full w-full object-contain p-2"
+        />
+      </div>
 
       <p class="px-3 py-2.5 text-center text-xs font-semibold text-primary-dark-900 sm:text-sm">
         {{ category.name }}
@@ -16,5 +24,9 @@
 </template>
 
 <script setup lang="ts">
-import { categories } from "~/data/categories";
+import { computed } from "vue";
+import { categories as fallbackCategories, type Category } from "~/data/categories";
+
+const props = defineProps<{ categories?: Category[] }>();
+const categories = computed(() => props.categories ?? fallbackCategories);
 </script>

@@ -11,13 +11,13 @@
     </div>
     <template v-for="(slot, index) in slots" :key="index">
       <div class="flex flex-1 flex-col items-center gap-1.5 text-center">
-        <span v-if="slot" class="z-10 h-3.5 w-3.5 rounded-full border-2" :class="dotClass(index)" />
+        <span v-if="slot" class="z-10 h-3.5 w-3.5 rounded-full border-2" :class="dotClass(slot)" />
         <span v-else class="h-3.5 w-3.5" />
         <template v-if="slot">
-          <span class="text-xs font-semibold" :class="slot.done ? 'text-primary-dark-900' : 'text-primary-dark-300'">
+          <span class="text-xs font-semibold" :class="slot.state === 'pending' ? 'text-primary-dark-300' : 'text-primary-dark-900'">
             {{ slot.label }}
           </span>
-          <span class="text-[11px] text-primary-dark-300">{{ slot.date }}</span>
+          <span v-if="slot.at" class="text-[11px] text-primary-dark-300">{{ formatOrderDate(slot.at) }}</span>
         </template>
       </div>
     </template>
@@ -26,25 +26,21 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { OrderTimelineEvent, SubOrderStatus } from "~/data/orders";
+import type { ApiTimelineStep } from "~/models/orders_model";
 
 const TOTAL_SLOTS = 4;
 
-const props = defineProps<{ events: OrderTimelineEvent[]; status: SubOrderStatus }>();
+const props = defineProps<{ steps: ApiTimelineStep[] }>();
 
-// Cancelled sub-orders only ever carry a "Created" + terminal "Cancelled" event. Rather than
-// bunching them into the first two slots, the terminal dot sits at the second-to-last slot so
-// it lines up with where "Dispatched" would sit on a full 4-step timeline.
-const slots = computed<(OrderTimelineEvent | null)[]>(() => {
-  if (props.status === "cancelled" && props.events.length < TOTAL_SLOTS) {
-    const result: (OrderTimelineEvent | null)[] = Array(TOTAL_SLOTS).fill(null);
-    result[0] = props.events[0] ?? null;
-    result[TOTAL_SLOTS - 2] = props.events[props.events.length - 1] ?? null;
-    return result;
-  }
-  const padded: (OrderTimelineEvent | null)[] = [...props.events];
-  while (padded.length < TOTAL_SLOTS) padded.push(null);
-  return padded;
+// A cancelled sub-order ends in a "branch" step. Rather than bunching a short timeline into the
+// first slots, the branch sits no earlier than the second-to-last slot, where "On the way" would
+// sit on a full timeline.
+const branched = computed(() => props.steps.at(-1)?.state === "branch");
+const slots = computed<(ApiTimelineStep | null)[]>(() => {
+  const result: (ApiTimelineStep | null)[] = [...props.steps];
+  if (branched.value && result.length < TOTAL_SLOTS - 1) result.splice(-1, 0, null);
+  while (result.length < TOTAL_SLOTS) result.push(null);
+  return result;
 });
 
 const terminalIndex = computed(() => slots.value.findLastIndex((slot) => slot !== null));
@@ -58,22 +54,21 @@ function segmentStyle(index: number) {
   return { left: `${left}%`, right: `${right}%` };
 }
 
-function dotClass(index: number) {
-  const event = slots.value[index];
-  if (!event) return "";
-  if (props.status === "cancelled" && index === terminalIndex.value) {
-    return "border-rose-500 bg-rose-500";
-  }
-  if (event.done) return "border-emerald-500 bg-emerald-500";
-  return "border-primary-dark-200 bg-white";
+function dotClass(step: ApiTimelineStep) {
+  return {
+    done: "border-emerald-500 bg-emerald-500",
+    current: "border-primary-500 bg-white",
+    pending: "border-primary-dark-200 bg-white",
+    branch: "border-rose-500 bg-rose-500",
+  }[step.state];
 }
 
 function lineClass(index: number) {
-  if (props.status === "cancelled") {
+  if (branched.value) {
     return index < terminalIndex.value ? "bg-rose-300" : "bg-transparent";
   }
   const [current, next] = [slots.value[index], slots.value[index + 1]];
   if (!current || !next) return "bg-transparent";
-  return current.done && next.done ? "bg-emerald-500" : "bg-primary-dark-100";
+  return current.state === "done" && next.state === "done" ? "bg-emerald-500" : "bg-primary-dark-100";
 }
 </script>

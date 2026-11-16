@@ -3,11 +3,30 @@
     :is="to ? NuxtLink : 'button'"
     :to="to"
     :type="to ? undefined : type"
-    :disabled="!to && disabled"
-    :aria-disabled="disabled"
+    :disabled="!to && (disabled || loading)"
+    :aria-disabled="disabled || loading"
+    :aria-busy="loading || undefined"
+    :tabindex="to && (disabled || loading) ? -1 : undefined"
     class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
-    :class="[sizeClasses, variantClasses, block ? 'w-full' : '', disabled ? 'pointer-events-none opacity-50' : '']"
+    :class="[
+      sizeClasses,
+      variantClasses,
+      block ? 'w-full' : '',
+      // Loading keeps the button's colours (only slightly dimmed) so the spinner stands out.
+      loading ? 'pointer-events-none opacity-80' : disabled ? 'pointer-events-none opacity-50' : '',
+    ]"
   >
+    <svg
+      v-if="loading"
+      class="shrink-0 animate-spin motion-reduce:[animation-duration:1.5s]"
+      :class="spinnerSize"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.3" stroke-width="3" />
+      <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+    </svg>
     <slot />
   </component>
 </template>
@@ -23,6 +42,8 @@ const props = withDefaults(
     size?: "sm" | "md" | "lg";
     to?: string;
     disabled?: boolean;
+    /** Shows a spinner and disables the button while an action is in flight. */
+    loading?: boolean;
     block?: boolean;
     type?: "button" | "submit";
   }>(),
@@ -31,6 +52,7 @@ const props = withDefaults(
     size: "md",
     to: undefined,
     disabled: false,
+    loading: false,
     block: false,
     type: "button",
   },
@@ -43,6 +65,8 @@ const sizeClasses = computed(() => {
     lg: "px-6 py-3 text-base",
   }[props.size];
 });
+
+const spinnerSize = computed(() => ({ sm: "h-3.5 w-3.5", md: "h-4 w-4", lg: "h-5 w-5" })[props.size]);
 
 const variantClasses = computed(() => {
   return {

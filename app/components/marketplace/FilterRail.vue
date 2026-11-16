@@ -2,16 +2,10 @@
   <aside class="space-y-5">
     <div class="rounded-xl border border-line bg-white p-4">
       <p class="text-sm font-bold text-primary-dark-900">What you can afford</p>
-      <p class="mt-2 font-sans text-2xl font-bold text-primary-dark-900">
-        {{ formatNaira(maxMonthly) }}<span class="text-sm font-medium text-primary-dark-400">/mo</span>
-      </p>
-      <RangeSlider v-model="maxMonthly" :min="5000" :max="limit" :step="500" class="mt-3" />
-      <div class="mt-1 flex justify-between text-[11px] text-primary-dark-300">
-        <span>{{ formatNaira(5000) }}</span>
-        <span>{{ formatNaira(limit) }} limit</span>
-      </div>
+      <BudgetSlider v-model="maxMonthly" class="mt-2" />
       <p class="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-700">
-        Showing items you could repay at {{ formatNaira(maxMonthly) }}/mo or less.
+        <template v-if="cap !== null">Showing items you could repay at {{ formatNaira(cap) }}/mo or less.</template>
+        <template v-else>{{ guidance }}</template>
       </p>
     </div>
 
@@ -71,12 +65,14 @@
 
 <script setup lang="ts">
 defineProps<{
-  limit: number;
+  /** Effective monthly cap in naira (budget, else known limit), or null for none. */
+  cap: number | null;
+  guidance: string;
   subCategories: { label: string; count: number }[];
   sellers: { label: string; count: number }[];
 }>();
 
-const maxMonthly = defineModel<number>("maxMonthly", { required: true });
+const maxMonthly = defineModel<number | null>("maxMonthly", { required: true });
 const selectedSubCategories = defineModel<string[]>("selectedSubCategories", { required: true });
 const selectedSellers = defineModel<string[]>("selectedSellers", { required: true });
 const officialOnly = defineModel<boolean>("officialOnly", { required: true });

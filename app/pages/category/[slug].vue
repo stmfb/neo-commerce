@@ -1,25 +1,54 @@
 <template>
   <div class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
-    <Breadcrumb class="mb-4" :items="[{ label: 'Home', to: '/' }, { label: category?.name ?? 'Category' }]" />
+    <Breadcrumb class="mb-4" :items="breadcrumbItems" />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+    <ShimmerCategoryPage v-if="initialLoading" />
+
+    <div v-else class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[280px_1fr]': !notFound }">
+      <!-- Phones/tablets: filters collapse behind a toggle so products are visible first. -->
+      <button
+        v-if="!notFound"
+        type="button"
+        class="flex items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-primary-dark-900 lg:hidden"
+        :aria-expanded="filtersOpen"
+        aria-controls="category-filters"
+        @click="filtersOpen = !filtersOpen"
+      >
+        <span class="flex items-center gap-2">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none">
+            <path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          Filters
+          <span v-if="activeChips.length" class="rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
+            {{ activeChips.length }}
+          </span>
+        </span>
+        <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': filtersOpen }" viewBox="0 0 20 20" fill="none">
+          <path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
       <FilterRail
+        v-if="!notFound"
+        id="category-filters"
+        :class="filtersOpen ? 'block' : 'hidden lg:block'"
         v-model:max-monthly="maxMonthly"
         v-model:selected-sub-categories="selectedSubCategories"
         v-model:selected-sellers="selectedSellers"
         v-model:official-only="officialOnly"
         v-model:in-stock-only="inStockOnly"
-        :limit="approvedLimit"
+        :cap="cap"
+        :guidance="affordabilityStore.guidance"
         :sub-categories="subCategoryOptions"
         :sellers="sellerOptions"
       />
 
       <div class="min-w-0">
         <div class="mb-4">
-          <h1 class="text-2xl font-bold text-primary-dark-900">{{ category?.name }}</h1>
-          <p class="mt-1 text-sm text-primary-dark-400">
-            {{ categoryProducts.length }} items from {{ sellerOptions.length }} sellers · filtered to
-            {{ formatNaira(maxMonthly) }}/mo
+          <h1 class="text-2xl font-bold text-primary-dark-900">{{ categoryName }}</h1>
+          <p v-if="!notFound" class="mt-1 text-sm text-primary-dark-400">
+            {{ totalItems }} items from {{ sellerOptions.length }} sellers<template v-if="cap !== null">
+              · filtered to {{ formatNaira(cap) }}/mo</template>
           </p>
         </div>
 
@@ -32,9 +61,39 @@
           </button>
         </div>
 
-        <ProductGrid v-if="filteredProducts.length" :products="filteredProducts" />
+        <EmptyState
+          v-if="notFound"
+          title="We couldn't find this category"
+          description="It may have been renamed or removed. Try one of these instead."
+        >
+          <template #actions>
+            <NcButton
+              v-for="category in marketplaceStore.categories"
+              :key="category.slug"
+              :to="`/category/${category.slug}`"
+              variant="secondary"
+              size="sm"
+            >
+              {{ category.name }}
+            </NcButton>
+          </template>
+        </EmptyState>
 
-        <EmptyState v-else :title="emptyTitle" :description="emptyDescription">
+        <StatusBanner v-else-if="error" tone="warning" title="We couldn't load this category" class="mb-4">
+          Please refresh to try again.
+        </StatusBanner>
+
+        <template v-if="filteredProducts.length">
+          <ProductGrid :products="filteredProducts" demote-out-of-stock />
+          <ShimmerProductGrid v-if="loadingMore" :count="4" class="mt-4" />
+          <div v-if="nextCursor !== null" class="mt-6 flex justify-center">
+            <NcButton variant="secondary" size="sm" :loading="loadingMore" @click="loadMore">
+              {{ loadingMore ? "Loading more…" : "Load more" }}
+            </NcButton>
+          </div>
+        </template>
+
+        <EmptyState v-else-if="!error && !notFound" :title="emptyTitle" :description="emptyDescription">
           <template #icon>
             <svg class="h-6 w-6" viewBox="0 0 20 20" fill="none">
               <path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7L3 4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
@@ -56,24 +115,77 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { getCategory } from "~/data/categories";
-import { getProductsByCategory } from "~/data/products";
+import type { Product } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 
 const route = useRoute();
-const { approvedLimit } = useAuth();
+const affordabilityStore = useAffordabilityStore();
+const categoryStore = useCategoryStore();
+const { loading: pending, loadingMore, error, errorStatus, nextCursor } = storeToRefs(categoryStore);
+const notFound = computed(() => errorStatus.value === 404);
+const initialLoading = computed(() => pending.value && !categoryProducts.value.length);
+const filtersOpen = ref(false);
+
+// Category list for the not-found suggestions. Shares the header nav's key, so it's one request.
+const marketplaceStore = useMarketplaceStore();
+// The header nav already loads this in the browser; only wait for it during SSR, where
+// the page can render before the nav has finished.
+if (import.meta.server) await marketplaceStore.fetchHome();
 
 const slug = computed(() => route.params.slug as string);
-const category = computed(() => getCategory(slug.value));
-const categoryProducts = computed(() => getProductsByCategory(slug.value));
+const categoryName = computed(() => {
+  const fromApi = categoryStore.categoryName;
+  if (fromApi) return fromApi;
+  const known = getCategory(slug.value)?.name;
+  if (known) return known;
+  return slug.value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+});
 
-const maxMonthly = ref(approvedLimit.value);
+await useAsyncData(
+  () => `category-listings-${slug.value}`,
+  () => categoryStore.fetchListings(slug.value),
+  // lazy: client navigations switch page immediately and show the shimmer while loading.
+  { watch: [slug], lazy: true },
+);
+
+const loadMore = () => categoryStore.loadMore();
+
+const categoryProducts = computed<Product[]>(() =>
+  categoryStore.listings.map((listing) => listingToProduct(listing, slug.value)),
+);
+
+const totalItems = computed(() => categoryStore.total || categoryProducts.value.length);
+
+const breadcrumbItems = computed(() => {
+  const trail = categoryStore.breadcrumb.length
+    ? categoryStore.breadcrumb
+    : [{ label: categoryName.value, slug: slug.value }];
+  return [
+    { label: "Home", to: "/" },
+    ...trail.map((crumb, i) =>
+      i === trail.length - 1 ? { label: crumb.label } : { label: crumb.label, to: `/category/${crumb.slug}` },
+    ),
+  ];
+});
+
+const sellerName = (product: Product) =>
+  product.merchantName ?? getMerchant(product.merchantSlug)?.name ?? product.merchantSlug;
+
+// The budget slider here is the site-wide budget (same as the header chip), in naira.
+const maxMonthly = computed<number | null>({
+  get: () => affordabilityStore.budget,
+  set: (naira) => affordabilityStore.setBudget(naira === null ? null : nairaToKobo(naira)),
+});
+/** What results are capped at: picked budget, else known limit, else no cap. */
+const cap = computed(() => affordabilityStore.cap);
+const fitsCap = (monthly: number) => cap.value === null || monthly <= cap.value;
 const selectedSubCategories = ref<string[]>([]);
 const selectedSellers = ref<string[]>([]);
 const officialOnly = ref(false);
 const inStockOnly = ref(false);
 
 watch(slug, () => {
-  maxMonthly.value = approvedLimit.value;
+  filtersOpen.value = false;
   selectedSubCategories.value = [];
   selectedSellers.value = [];
   officialOnly.value = false;
@@ -83,15 +195,19 @@ watch(slug, () => {
 const subCategoryOptions = computed(() => {
   const counts = new Map<string, number>();
   for (const product of categoryProducts.value) {
+    if (!product.subCategory) continue;
     counts.set(product.subCategory, (counts.get(product.subCategory) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
 });
 
+// Facets cover the whole category, not just the pages loaded so far.
 const sellerOptions = computed(() => {
+  const facets = categoryStore.facets?.merchants;
+  if (facets?.length) return facets.map(({ label, count }) => ({ label, count }));
   const counts = new Map<string, number>();
   for (const product of categoryProducts.value) {
-    const name = getMerchant(product.merchantSlug)?.name ?? product.merchantSlug;
+    const name = sellerName(product);
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
@@ -100,22 +216,22 @@ const sellerOptions = computed(() => {
 function matchesEverythingExceptBudget(product: (typeof categoryProducts.value)[number]) {
   const merchant = getMerchant(product.merchantSlug);
   if (selectedSubCategories.value.length && !selectedSubCategories.value.includes(product.subCategory)) return false;
-  if (selectedSellers.value.length && !selectedSellers.value.includes(merchant?.name ?? "")) return false;
-  if (officialOnly.value && !merchant?.official) return false;
+  if (selectedSellers.value.length && !selectedSellers.value.includes(sellerName(product))) return false;
+  if (officialOnly.value && !(merchant?.official ?? product.merchantVerified)) return false;
   if (inStockOnly.value && product.stock === "out") return false;
   return true;
 }
 
 const filteredProducts = computed(() =>
   categoryProducts.value.filter(
-    (product) => matchesEverythingExceptBudget(product) && product.fromMonthly <= maxMonthly.value,
+    (product) => matchesEverythingExceptBudget(product) && fitsCap(product.fromMonthly),
   ),
 );
 
 const suggestedRaise = computed(() => {
   if (filteredProducts.value.length) return null;
   const candidates = categoryProducts.value
-    .filter((product) => matchesEverythingExceptBudget(product) && product.fromMonthly > maxMonthly.value)
+    .filter((product) => matchesEverythingExceptBudget(product) && !fitsCap(product.fromMonthly))
     .sort((a, b) => a.fromMonthly - b.fromMonthly);
   return candidates[0]?.fromMonthly ?? null;
 });
@@ -133,16 +249,16 @@ const emptyTitle = computed(() =>
 
 const emptyDescription = computed(() => {
   if (!suggestedRaise.value) return "Try clearing a filter to see more items in this category.";
-  return `Your ${formatNaira(maxMonthly.value)}/mo budget is the tightest one. Raising it to ${formatNaira(suggestedRaise.value)}/mo would show ${raisedCount.value} items in this category.`;
+  return `Your ${formatNaira(cap.value ?? 0)}/mo budget is the tightest one. Raising it to ${formatNaira(suggestedRaise.value)}/mo would show ${raisedCount.value} items in this category.`;
 });
 
 const activeChips = computed(() => {
   const chips: { key: string; label: string; remove: () => void }[] = [];
-  if (maxMonthly.value < approvedLimit.value) {
+  if (maxMonthly.value !== null) {
     chips.push({
       key: "budget",
       label: `Under ${formatNaira(maxMonthly.value)}/mo`,
-      remove: () => (maxMonthly.value = approvedLimit.value),
+      remove: () => (maxMonthly.value = null),
     });
   }
   for (const sub of selectedSubCategories.value) {
@@ -169,7 +285,7 @@ const activeChips = computed(() => {
 });
 
 function clearAll() {
-  maxMonthly.value = approvedLimit.value;
+  maxMonthly.value = null;
   selectedSubCategories.value = [];
   selectedSellers.value = [];
   officialOnly.value = false;

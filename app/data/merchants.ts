@@ -2,6 +2,7 @@ export interface Merchant {
   slug: string;
   name: string;
   initials: string;
+  logo?: string;
   tileColor: string;
   verified: boolean;
   official: boolean;

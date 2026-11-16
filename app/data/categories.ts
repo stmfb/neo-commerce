@@ -1,8 +1,9 @@
 export interface Category {
   slug: string;
   name: string;
+  image?: string;
   tileColor: string;
-  barColor: string;
+  barColor?: string;
 }
 
 export const categories: Category[] = [

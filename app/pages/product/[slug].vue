@@ -1,24 +1,61 @@
 <template>
-  <div v-if="product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+  <div v-if="showShimmer" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
+    <ShimmerProductDetail />
+  </div>
+
+  <div v-else-if="product" class="mx-auto max-w-[1320px] px-4 py-6 sm:px-6">
     <Breadcrumb class="mb-4" :items="breadcrumbItems" />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[380px_minmax(0,1fr)_300px]">
       <div>
-        <ImagePlaceholder class="aspect-square w-full" />
-        <div class="mt-3 grid grid-cols-5 gap-2">
-          <ImagePlaceholder v-for="n in 5" :key="n" class="aspect-square w-full" />
-        </div>
+        <template v-if="gallery.length">
+          <ShimmerImg
+            :key="activeImage"
+            :src="activeImage"
+            :alt="product.name"
+            loading="eager"
+            class="aspect-square w-full rounded-xl"
+            img-class="h-full w-full rounded-xl object-cover"
+          >
+            <template #fallback>
+              <ImagePlaceholder class="h-full w-full" />
+            </template>
+          </ShimmerImg>
+          <div v-if="gallery.length > 1" class="mt-3 grid grid-cols-5 gap-2">
+            <button
+              v-for="(src, i) in gallery"
+              :key="src"
+              type="button"
+              class="overflow-hidden rounded-lg border-2"
+              :class="activeImage === src ? 'border-primary-500' : 'border-transparent'"
+              @click="activeImageIndex = i"
+            >
+              <ShimmerImg
+                :src="src"
+                :alt="`${product.name} image ${i + 1}`"
+                class="aspect-square w-full"
+                img-class="h-full w-full object-cover"
+              />
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <ImagePlaceholder class="aspect-square w-full" />
+          <div class="mt-3 grid grid-cols-5 gap-2">
+            <ImagePlaceholder v-for="n in 5" :key="n" class="aspect-square w-full" />
+          </div>
+        </template>
       </div>
 
       <div class="space-y-5">
         <div>
           <h1 class="text-2xl font-bold text-primary-dark-900">{{ product.name }}</h1>
           <div class="mt-2 flex items-center gap-2">
-            <span :class="product.stock === 'out' ? 'text-primary-dark-300 line-through' : 'text-primary-dark-900'" class="text-2xl font-bold">
-              {{ formatNaira(product.price) }}
+            <span :class="shown.stock === 'out' ? 'text-primary-dark-300 line-through' : 'text-primary-dark-900'" class="text-2xl font-bold">
+              {{ formatNaira(shown.price) }}
             </span>
-            <span v-if="product.bnplEligible && product.fromMonthly" class="rounded-full bg-primary-dark px-2.5 py-1 text-xs font-semibold text-white">
-              from {{ formatNaira(product.fromMonthly) }}/mo
+            <span v-if="shown.bnplEligible && shown.fromMonthly" class="rounded-full bg-primary-dark px-2.5 py-1 text-xs font-semibold text-white">
+              from {{ formatNaira(shown.fromMonthly) }}/mo
             </span>
           </div>
           <NuxtLink :to="`/merchant/${merchant?.slug}`" class="mt-2 flex items-center gap-1 text-sm font-semibold text-primary-600 hover:text-primary-700">
@@ -32,8 +69,8 @@
         </div>
 
         <div class="space-y-2 border-y border-line py-4 text-sm">
-          <p v-if="product.stock === 'low'" class="flex items-center gap-2 text-rose-600">
-            <IconBox /> Only {{ product.stockCount }} left in stock
+          <p v-if="shown.stock === 'low'" class="flex items-center gap-2 text-rose-600">
+            <IconBox /> Only {{ shown.stockCount }} left in stock
           </p>
           <p class="flex items-center gap-2 text-primary-dark-700">
             <IconTruck /> {{ merchant?.deliveryEta }}
@@ -70,7 +107,8 @@
 
         <div v-if="product.description" class="rounded-xl border border-line bg-white p-4">
           <p class="text-sm font-bold text-primary-dark-900">About this item</p>
-          <p class="mt-2 text-sm leading-relaxed text-primary-dark-600">{{ product.description }}</p>
+          <!-- Plain text from the seller; keep its line breaks. -->
+          <p class="mt-2 whitespace-pre-line text-sm leading-relaxed text-primary-dark-600">{{ product.description }}</p>
           <dl v-if="product.specs?.length" class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 text-sm">
             <div v-for="spec in product.specs" :key="spec.label">
               <dt class="text-primary-dark-400">{{ spec.label }}</dt>
@@ -80,37 +118,96 @@
         </div>
       </div>
 
-      <ProductBuyBox :product="product" :selected-variants="selectedVariants" />
+      <ProductBuyBox
+        :product="shown"
+        :selected-variants="selectedVariants"
+        :merchant="merchant"
+        :max-quantity="apiListing?.maxQuantity"
+        :listing-id="apiListing?.listingId"
+        :variant-id="selectedVariant?.id"
+        :variant-missing="Boolean(apiListing?.variants?.length) && !selectedVariant"
+      />
     </div>
+  </div>
+
+  <div v-else class="mx-auto max-w-[1320px] px-4 py-16 sm:px-6">
+    <EmptyState :title="notFound ? 'This item is no longer available' : 'We could not load this item'"
+      :description="notFound ? 'It may have been removed by the seller.' : 'Please refresh to try again.'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { getProduct, type ProductVariantGroup } from "~/data/products";
 import { getMerchant } from "~/data/merchants";
 import { getCategory } from "~/data/categories";
 
 const route = useRoute();
-const product = computed(() => getProduct(route.params.slug as string));
-const merchant = computed(() => (product.value ? getMerchant(product.value.merchantSlug) : undefined));
+const slug = computed(() => route.params.slug as string);
+
+const listingStore = useListingStore();
+const { listing, loading: pending, error, errorStatus } = storeToRefs(listingStore);
+const notFound = computed(() => errorStatus.value === 404);
+
+// Local demo products (e.g. recently viewed) still resolve without an API call.
+const localProduct = computed(() => getProduct(slug.value));
+
+await useAsyncData(
+  () => `listing-${slug.value}`,
+  () => (localProduct.value ? Promise.resolve(true) : listingStore.fetchListing(slug.value)),
+  // lazy: client navigations switch page immediately and show the shimmer while loading.
+  { watch: [slug], lazy: true },
+);
+
+const apiListing = computed(() => (listing.value?.listingId === slug.value ? listing.value : null));
+
+const product = computed(
+  () => localProduct.value ?? (apiListing.value ? listingDetailToProduct(apiListing.value) : undefined),
+);
+// Shimmer until this product's data is here or the request has failed — covers the tick
+// between a lazy navigation rendering and the fetch starting.
+const showShimmer = computed(() => !product.value && (pending.value || !error.value));
+
+const merchant = computed(() => {
+  if (apiListing.value) return listingMerchantToMerchant(apiListing.value.merchant);
+  return product.value ? getMerchant(product.value.merchantSlug) : undefined;
+});
 const category = computed(() => (product.value ? getCategory(product.value.categorySlug) : undefined));
 
-const selectedVariants = reactive<Record<string, string>>({});
+const gallery = computed(() => (apiListing.value ? listingStore.gallery : []));
+const activeImageIndex = ref(0);
+const activeImage = computed(() => gallery.value[activeImageIndex.value] ?? gallery.value[0]);
 
-if (product.value?.variants) {
-  for (const group of product.value.variants) {
-    const firstAvailable = group.options.find((option) => option.inStock) ?? group.options[0];
-    selectedVariants[group.name] = firstAvailable.label;
-  }
-}
+const selectedVariants = reactive<Record<string, string>>({});
+const selectedVariant = computed(() =>
+  apiListing.value?.variants?.length ? findVariant(apiListing.value.variants, selectedVariants) : null,
+);
+/** The product with the picked variant's price and stock, when the listing has variants. */
+const shown = computed(() =>
+  product.value && selectedVariant.value ? variantProduct(product.value, selectedVariant.value) : product.value!,
+);
+
+watch(
+  product,
+  (current) => {
+    activeImageIndex.value = 0;
+    for (const key of Object.keys(selectedVariants)) delete selectedVariants[key];
+    for (const group of current?.variants ?? []) {
+      const firstAvailable = group.options.find((option) => option.inStock) ?? group.options[0];
+      if (firstAvailable) selectedVariants[group.name] = firstAvailable.label;
+    }
+  },
+  { immediate: true },
+);
 
 const breadcrumbItems = computed(() => {
   if (!product.value) return [{ label: "Home", to: "/" }];
   return [
     { label: "Home", to: "/" },
-    { label: category.value?.name ?? "Category", to: `/category/${product.value.categorySlug}` },
-    { label: product.value.subCategory },
+    ...(product.value.categorySlug
+      ? [{ label: category.value?.name ?? "Category", to: `/category/${product.value.categorySlug}` }]
+      : []),
+    ...(product.value.subCategory ? [{ label: product.value.subCategory }] : []),
     { label: product.value.name },
   ];
 });

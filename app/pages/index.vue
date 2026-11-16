@@ -18,30 +18,44 @@
       </div>
     </div>
 
-    <HomeAffordabilityWidget
-      :signed-in="signedIn"
-      :approved-limit="approvedLimit"
-      @apply="applyBudget"
-      @sign-in="toggleSignedIn"
-    />
+    <HomeAffordabilityWidget />
 
-    <section>
+    <StatusBanner v-if="homeError" tone="warning" title="We couldn't load the latest listings">
+      Please refresh to try again.
+    </StatusBanner>
+
+    <section v-if="homeCategories.length">
       <SectionHeader title="Shop by category" />
-      <CategoryTileGrid />
+      <CategoryTileGrid :categories="homeCategories" />
+    </section>
+    <section v-else-if="pending">
+      <ShimmerSectionHeader />
+      <ShimmerCategoryGrid />
     </section>
 
-    <section>
+    <ShimmerHomeRails v-if="pending && !displayedRails.length" />
+
+    <section v-for="rail in displayedRails" :key="rail.id">
       <SectionHeader
-        :title="signedIn ? `Fits your ${formatNaira(appliedBudget ?? approvedLimit)}/mo` : 'Popular this week'"
+        :title="rail.title"
         :subtitle="appliedBudget ? `Showing items you could repay at ${formatNaira(appliedBudget)}/mo or less.` : undefined"
       />
-      <ProductGrid :products="displayedProducts" :columns="6" />
+      <ProductGrid v-if="rail.products.length" :products="rail.products" :columns="6" demote-out-of-stock />
+      <p v-else class="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-primary-dark-400">
+        Nothing in this range fits {{ formatNaira(appliedBudget ?? 0) }}/mo yet.
+      </p>
     </section>
 
-    <section class="rounded-2xl border border-line bg-white p-5">
-      <SectionHeader title="Official stores" action-label="See all 40 stores" action-to="/official-stores" />
+    <section v-if="officialMerchants.length" class="rounded-2xl border border-line bg-white p-5">
+      <SectionHeader title="Official stores" action-label="See all stores" action-to="/official-stores" />
       <div class="grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-6">
         <MerchantTile v-for="merchant in officialMerchants" :key="merchant.slug" :merchant="merchant" variant="card" />
+      </div>
+    </section>
+    <section v-else-if="pending" class="rounded-2xl border border-line bg-white p-5">
+      <ShimmerSectionHeader action />
+      <div class="border-t border-line pt-4">
+        <ShimmerMerchantGrid />
       </div>
     </section>
 
@@ -55,30 +69,52 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { products } from "~/data/products";
-import { merchants } from "~/data/merchants";
+import type { Category } from "~/data/categories";
 
-const { signedIn, approvedLimit, toggleSignedIn } = useAuth();
 
-const appliedBudget = ref<number | null>(null);
+const { signedIn } = useAuth();
+const affordabilityStore = useAffordabilityStore();
+const marketplaceStore = useMarketplaceStore();
+const { loading: pending, error: homeError } = storeToRefs(marketplaceStore);
 
-function applyBudget(value: number) {
-  appliedBudget.value = value;
-}
+// Runs on the server for SSR; Pinia state is hydrated to the client, so no refetch.
+await useAsyncData("marketplace-home", () => marketplaceStore.fetchHome(), { lazy: true });
 
-const featuredProducts = computed(() =>
-  ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => products.find((product) => product.id === id)!),
+// Site-wide monthly budget (header chip / home widget), in naira.
+const appliedBudget = computed(() => affordabilityStore.budget);
+
+const rails = computed(() =>
+  marketplaceStore.rails.map((rail) => ({
+    id: rail.id,
+    title: rail.title,
+    products: rail.listings.map((listing) => listingToProduct(listing)),
+  })),
 );
 
-const displayedProducts = computed(() => {
-  if (!appliedBudget.value) return featuredProducts.value;
-  return featuredProducts.value.filter((product) => product.fromMonthly <= appliedBudget.value!);
+const displayedRails = computed(() => {
+  const budget = appliedBudget.value;
+  if (!budget) return rails.value;
+  return rails.value.map((rail) => ({
+    ...rail,
+    products: rail.products.filter((product) => product.fromMonthly <= budget),
+  }));
 });
 
+const homeCategories = computed<Category[]>(() =>
+  marketplaceStore.categories.map((category) => ({
+    slug: category.slug,
+    name: category.name,
+    image: category.image,
+    tileColor: "bg-slate-100",
+  })),
+);
+
+const officialMerchants = computed(() => marketplaceStore.officialStores.map(storeToMerchant));
+
+// Still local until there is a recently-viewed endpoint.
 const recentlyViewed = computed(() =>
   ["p1", "p3", "p5", "p4", "p2", "p18"].map((id) => products.find((product) => product.id === id)!),
 );
-
-const officialMerchants = computed(() => merchants.filter((merchant) => merchant.official));
 </script>
